@@ -1,0 +1,17 @@
+/*
+Area CSS source entry.
+
+bun.build.ts concatenates these files in this order:
+1. src/styles/view.css
+2. src/styles/gallery-toolbar.css
+3. src/styles/gallery-grid.css
+4. src/styles/gallery-cards.css
+5. src/styles/detail-modal.css
+6. src/styles/token-editors.css
+7. src/styles/schema-modal.css
+8. src/styles/utilities.css
+9. src/styles/responsive.css
+
+The generated root styles.css is the Obsidian release artifact.
+Edit the source files above instead of the generated artifact.
+*/

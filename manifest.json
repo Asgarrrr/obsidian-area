@@ -1,0 +1,9 @@
+{
+	"id": "area",
+	"name": "Area",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Visual reference collections for Obsidian",
+	"author": "Area contributors",
+	"isDesktopOnly": false
+}

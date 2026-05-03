@@ -1,0 +1,37 @@
+# vscode
+.vscode
+
+# Intellij
+*.iml
+.idea
+
+# npm
+node_modules
+
+# Don't include the compiled main.js file in the repo.
+# They should be uploaded to GitHub releases instead.
+/main.js
+
+# Exclude sourcemaps
+*.map
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Built styles (source is split under src/styles/)
+/styles.css
+
+# Environment (vault path, etc.)
+.env
+
+# Local backup of previous repository metadata
+.git.backup-*/
+
+# Claude Code
+.claude/
+
+# obsidian
+data.json
+
+# Exclude macOS Finder (System Explorer) View States
+.DS_Store

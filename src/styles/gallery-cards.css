@@ -1,0 +1,86 @@
+.area-card {
+	position: relative;
+	border-radius: var(--radius-m);
+	cursor: pointer;
+	background: var(--background-secondary);
+	transition:
+		transform 0.15s,
+		box-shadow 0.15s;
+}
+
+.area-card:hover {
+	transform: scale(1.02);
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.area-card img {
+	aspect-ratio: 1;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+	border-radius: var(--radius-m);
+	overflow: hidden;
+}
+
+.area-card-title {
+	font-size: 0.8em;
+	color: var(--text-muted);
+	padding: 4px 2px 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	width: 100%;
+}
+
+.area-card-overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	padding: 8px;
+	/* Dark gradient anchored to the bottom for legibility. */
+	background: linear-gradient(to top, rgba(0, 0, 0, 0.65) 0%, transparent 55%);
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.area-card:hover .area-card-overlay {
+	opacity: 1;
+}
+
+.area-card-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.area-card-tags .tag {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	pointer-events: none;
+}
+
+.area-card-source {
+	position: absolute;
+	bottom: 8px;
+	right: 8px;
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-s);
+	background: rgba(0, 0, 0, 0.5);
+	/* White is intentional: the icon sits on a dark overlay. */
+	color: #fff;
+	text-decoration: none;
+	font-size: 0.75em;
+	transition: background 0.1s;
+}
+
+.area-card-source:hover {
+	background: var(--interactive-accent);
+}

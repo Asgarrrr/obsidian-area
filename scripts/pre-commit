@@ -1,0 +1,3 @@
+#!/bin/sh
+# Pre-commit hook: lint staged files with Biome
+bunx biome lint src/ || exit 1

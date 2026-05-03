@@ -1,0 +1,14 @@
+.area-new-name-input {
+	width: 100%;
+	margin-bottom: 12px;
+}
+
+.area-clipboard-fallback {
+	position: fixed;
+	top: -1000px;
+	left: -1000px;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+	pointer-events: none;
+}

@@ -1,0 +1,80 @@
+.area-schema-modal {
+	padding: 16px;
+	min-width: 420px;
+}
+
+.area-schema-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 16px;
+}
+
+.area-schema-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-secondary);
+	flex-wrap: wrap;
+}
+
+.area-schema-label {
+	flex: 1 1 180px;
+	min-width: 100px;
+}
+
+.area-schema-type {
+	width: 120px;
+	flex: 0 0 120px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: var(--input-height);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--input-radius);
+	color: var(--text-muted);
+	background: var(--background-primary);
+}
+
+.area-schema-options {
+	width: 100%;
+	order: 1;
+}
+
+.area-schema-row-controls {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex-shrink: 0;
+}
+
+.area-schema-add {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding-top: 12px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.area-schema-add input {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
+.area-schema-empty {
+	margin: 0;
+	color: var(--text-muted);
+}
+
+.area-schema-add select {
+	width: 120px;
+	flex: 0 0 120px;
+}
+
+.area-schema-add-button {
+	white-space: nowrap;
+	flex: 0 0 auto;
+}
