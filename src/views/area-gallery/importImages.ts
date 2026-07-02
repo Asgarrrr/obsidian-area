@@ -1,5 +1,17 @@
-import { normalizePath, type App, type DataAdapter, type TFile } from "obsidian";
+import {
+	normalizePath,
+	type App,
+	type DataAdapter,
+	type TFile,
+} from "obsidian";
 import type { AreaItem } from "../../types";
+import {
+	getFileExtension,
+	getImageExtensionForFile,
+	isSupportedImageFile,
+	isSupportedVaultImageFile,
+	readAspectRatio,
+} from "./imageFileTypes";
 
 export interface ImportImageIssue {
 	name: string;
@@ -13,19 +25,6 @@ export interface ImportImageResult {
 	unsupported: ImportImageIssue[];
 	failed: ImportImageIssue[];
 }
-
-const SUPPORTED_IMAGE_EXTENSIONS = new Set([
-	"avif",
-	"bmp",
-	"gif",
-	"heic",
-	"heif",
-	"jpeg",
-	"jpg",
-	"png",
-	"svg",
-	"webp",
-]);
 
 export async function importImageFiles(
 	app: App,
@@ -119,38 +118,6 @@ export function hasAreaItemWithVaultPath(
 	return items.some((item) => item.vaultPath === vaultPath);
 }
 
-export function isSupportedImageFile(file: File): boolean {
-	return file.type.startsWith("image/") || isSupportedImageExtension(file.name);
-}
-
-export function isSupportedVaultImageFile(file: TFile): boolean {
-	return SUPPORTED_IMAGE_EXTENSIONS.has(file.extension.toLowerCase());
-}
-
-export function getImageExtensionFromMimeType(mimeType: string): string {
-	switch (mimeType.toLowerCase()) {
-		case "image/avif":
-			return "avif";
-		case "image/bmp":
-			return "bmp";
-		case "image/gif":
-			return "gif";
-		case "image/heic":
-			return "heic";
-		case "image/heif":
-			return "heif";
-		case "image/jpeg":
-		case "image/jpg":
-			return "jpg";
-		case "image/svg+xml":
-			return "svg";
-		case "image/webp":
-			return "webp";
-		default:
-			return "png";
-	}
-}
-
 function createImportImageResult(): ImportImageResult {
 	return {
 		items: [],
@@ -175,6 +142,7 @@ async function createExternalImageItem(
 		tags: [],
 		addedAt: Date.now(),
 		title: getTitleFromFileName(file.name, "Imported image"),
+		...(await readAspectRatio(file)),
 	};
 }
 
@@ -189,7 +157,10 @@ async function getUniqueAttachmentPath(
 	existingVaultPaths: Set<string>,
 ): Promise<string> {
 	let candidate = normalizePath(`${attachmentsDir}/${filename}`);
-	while (existingVaultPaths.has(candidate) || (await adapter.exists(candidate))) {
+	while (
+		existingVaultPaths.has(candidate) ||
+		(await adapter.exists(candidate))
+	) {
 		const ext = getFileExtension(filename) ?? "png";
 		candidate = normalizePath(
 			`${attachmentsDir}/${crypto.randomUUID()}.${ext}`,
@@ -217,28 +188,6 @@ async function ensureVaultFolder(
 
 function normalizeVaultFolderPath(folderPath: string): string {
 	return normalizePath(folderPath).replace(/\/$/, "");
-}
-
-function isSupportedImageExtension(filename: string): boolean {
-	const extension = getFileExtension(filename);
-	return extension !== null && SUPPORTED_IMAGE_EXTENSIONS.has(extension);
-}
-
-function getImageExtensionForFile(file: File): string {
-	const extension = getFileExtension(file.name);
-	if (extension) {
-		return extension;
-	}
-	return getImageExtensionFromMimeType(file.type);
-}
-
-function getFileExtension(filename: string): string | null {
-	const lastDot = filename.lastIndexOf(".");
-	if (lastDot <= 0 || lastDot === filename.length - 1) return null;
-
-	const extension = filename.slice(lastDot + 1).toLowerCase();
-	const safeExtension = extension.replace(/[^a-z0-9]/g, "");
-	return safeExtension || null;
 }
 
 function getTitleFromFileName(filename: string, fallback: string): string {

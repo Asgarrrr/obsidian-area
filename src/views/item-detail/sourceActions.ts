@@ -50,7 +50,7 @@ export async function copySourceUrl(item: AreaItem): Promise<void> {
 	}
 }
 
-async function writeClipboard(value: string): Promise<void> {
+export async function writeClipboard(value: string): Promise<void> {
 	if (navigator.clipboard?.writeText) {
 		await navigator.clipboard.writeText(value);
 		return;

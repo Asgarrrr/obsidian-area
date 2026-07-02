@@ -12,3 +12,22 @@
 	opacity: 0;
 	pointer-events: none;
 }
+
+/* Honor users who opt out of motion: no scale/fade transitions. */
+@media (prefers-reduced-motion: reduce) {
+	.area-card,
+	.area-card-overlay,
+	.area-card-source,
+	.area-grid,
+	.area-empty-state__clear {
+		transition: none;
+	}
+
+	.area-card:hover,
+	.area-card:active,
+	.area-card-source:active,
+	.area-empty-state__clear:active,
+	.area-tag-filter:active {
+		transform: none;
+	}
+}

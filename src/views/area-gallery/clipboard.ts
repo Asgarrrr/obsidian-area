@@ -1,7 +1,7 @@
 import {
 	getImageExtensionFromMimeType,
 	isSupportedImageFile,
-} from "./importImages";
+} from "./imageFileTypes";
 
 export function getClipboardImageFiles(event: ClipboardEvent): File[] {
 	const clipboardData = event.clipboardData;

@@ -1,4 +1,5 @@
 import { ButtonComponent, type App } from "obsidian";
+import { stopEvent } from "../../dom";
 import type { AreaItem } from "../../types";
 import {
 	canShowAttachmentInSystemFolder,
@@ -26,44 +27,68 @@ export function renderAttachmentActions(
 	onClose: () => void,
 ): void {
 	const file = getAttachmentFile(app, item);
+	const tooltip = (active: string) => (file ? active : "Attachment not found");
 
-	const openButton = new ButtonComponent(container)
-		.setIcon("image")
-		.setButtonText("Open")
-		.setClass("area-detail-file-action-button")
-		.setTooltip(file ? "Open attachment" : "Attachment not found")
-		.setDisabled(!file)
-		.onClick(async (evt) => {
-			stopActionEvent(evt);
+	addFileActionButton(container, {
+		icon: "image",
+		text: "Open",
+		label: "Open attachment",
+		tooltip: tooltip("Open attachment"),
+		disabled: !file,
+		onClick: async () => {
 			if (await openAttachment(app, item)) onClose();
-		});
-	openButton.buttonEl.setAttribute("aria-label", "Open attachment");
+		},
+	});
 
-	const revealButton = new ButtonComponent(container)
-		.setIcon("folder-open")
-		.setButtonText("Reveal")
-		.setClass("area-detail-file-action-button")
-		.setTooltip(file ? "Reveal in Files" : "Attachment not found")
-		.setDisabled(!file)
-		.onClick((evt) => {
-			stopActionEvent(evt);
+	addFileActionButton(container, {
+		icon: "folder-open",
+		text: "Reveal",
+		label: "Reveal in Files",
+		tooltip: tooltip("Reveal in Files"),
+		disabled: !file,
+		onClick: () => {
 			if (revealAttachment(app, item)) onClose();
-		});
-	revealButton.buttonEl.setAttribute("aria-label", "Reveal in Files");
+		},
+	});
 
 	if (canShowAttachmentInSystemFolder(app)) {
-		const systemButton = new ButtonComponent(container)
-			.setIcon("folder-search")
-			.setButtonText("Folder")
-			.setClass("area-detail-file-action-button")
-			.setTooltip(file ? "Show in system folder" : "Attachment not found")
-			.setDisabled(!file)
-			.onClick((evt) => {
-				stopActionEvent(evt);
+		addFileActionButton(container, {
+			icon: "folder-search",
+			text: "Folder",
+			label: "Show in system folder",
+			tooltip: tooltip("Show in system folder"),
+			disabled: !file,
+			onClick: () => {
 				if (showAttachmentInSystemFolder(app, item)) onClose();
-			});
-		systemButton.buttonEl.setAttribute("aria-label", "Show in system folder");
+			},
+		});
 	}
+}
+
+interface FileActionButton {
+	icon: string;
+	text: string;
+	label: string;
+	tooltip: string;
+	disabled: boolean;
+	onClick: () => void | Promise<void>;
+}
+
+function addFileActionButton(
+	container: HTMLElement,
+	{ icon, text, label, tooltip, disabled, onClick }: FileActionButton,
+): void {
+	const button = new ButtonComponent(container)
+		.setIcon(icon)
+		.setButtonText(text)
+		.setClass("area-detail-file-action-button")
+		.setTooltip(tooltip)
+		.setDisabled(disabled)
+		.onClick((evt) => {
+			stopEvent(evt);
+			void onClick();
+		});
+	button.buttonEl.setAttribute("aria-label", label);
 }
 
 export function renderSourceActions(
@@ -74,7 +99,7 @@ export function renderSourceActions(
 		.setIcon("external-link")
 		.setButtonText("Open source")
 		.onClick((evt) => {
-			stopActionEvent(evt);
+			stopEvent(evt);
 			openSourceUrl(item);
 		});
 
@@ -82,7 +107,7 @@ export function renderSourceActions(
 		.setIcon("copy")
 		.setButtonText("Copy URL")
 		.onClick((evt) => {
-			stopActionEvent(evt);
+			stopEvent(evt);
 			copySourceUrl(item);
 		});
 
@@ -98,15 +123,10 @@ export function syncSourceActionState(
 	const hasSource = Boolean(getSourceUrl(item));
 	const hasValidSource = Boolean(getValidSourceUrl(item));
 
-	openSourceButton
-		.setDisabled(false)
-		.setTooltip(hasValidSource ? "Open source" : "Add a valid source URL first");
-	copySourceButton
-		.setDisabled(false)
-		.setTooltip(hasSource ? "Copy source URL" : "Add a source URL first");
-}
-
-function stopActionEvent(evt: MouseEvent): void {
-	evt.preventDefault();
-	evt.stopPropagation();
+	openSourceButton.setTooltip(
+		hasValidSource ? "Open source" : "Add a valid source URL first",
+	);
+	copySourceButton.setTooltip(
+		hasSource ? "Copy source URL" : "Add a source URL first",
+	);
 }

@@ -24,7 +24,7 @@ export function getFilteredItems(
 		return matchesTags && matchesSearch;
 	});
 
-	return [...filtered].sort((a, b) => compareItems(a, b, sortOrder));
+	return filtered.sort((a, b) => compareItems(a, b, sortOrder));
 }
 
 export function getAllTags(items: AreaItem[]): string[] {

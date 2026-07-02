@@ -1,18 +1,10 @@
-import {
-	App,
-	ButtonComponent,
-	FuzzySuggestModal,
-	Modal,
-	Notice,
-	TextComponent,
-	type TFile,
-} from "obsidian";
+import { App, ButtonComponent, Modal, Notice, TextComponent } from "obsidian";
 import type AreaPlugin from "../main";
 import { AreaGalleryView } from "../views/AreaGalleryView";
+import { FileSuggestModal } from "../views/fileSuggest";
 
 function getActiveAreaView(app: App): AreaGalleryView | null {
-	const leaf = app.workspace.activeLeaf;
-	return leaf?.view instanceof AreaGalleryView ? leaf.view : null;
+	return app.workspace.getActiveViewOfType(AreaGalleryView);
 }
 
 async function newAreaCommand(plugin: AreaPlugin): Promise<void> {
@@ -84,25 +76,6 @@ class NewAreaModal extends Modal {
 	}
 }
 
-class FuzzyAreaSuggest extends FuzzySuggestModal<TFile> {
-	constructor(app: App) {
-		super(app);
-		this.setPlaceholder("Choose an area…");
-	}
-
-	getItems(): TFile[] {
-		return this.app.vault.getFiles().filter((f) => f.extension === "area");
-	}
-
-	getItemText(file: TFile): string {
-		return `${file.basename}  ${file.parent?.path ?? ""}`;
-	}
-
-	onChooseItem(file: TFile): void {
-		this.app.workspace.getLeaf(false).openFile(file);
-	}
-}
-
 function openAreaCommand(plugin: AreaPlugin): void {
 	const areas = plugin.app.vault
 		.getFiles()
@@ -111,7 +84,12 @@ function openAreaCommand(plugin: AreaPlugin): void {
 		new Notice("No areas found. Use 'New area' to create one.");
 		return;
 	}
-	new FuzzyAreaSuggest(plugin.app).open();
+	new FileSuggestModal(
+		plugin.app,
+		areas,
+		(file) => plugin.app.workspace.getLeaf(false).openFile(file),
+		"Choose an area…",
+	).open();
 }
 
 export function registerCommands(plugin: AreaPlugin): void {

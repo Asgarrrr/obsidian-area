@@ -1,13 +1,7 @@
 @media (max-width: 720px) {
-	.area-detail-modal-shell {
-		width: 96vw;
-		max-height: 92vh;
-	}
-
-	.area-detail {
+	.area-detail-view-body {
 		grid-template-columns: 1fr;
 		grid-template-rows: minmax(220px, 42vh) minmax(0, 1fr);
-		height: 88vh;
 	}
 
 	.area-detail-sidebar {
@@ -15,18 +9,8 @@
 		border-left: 0;
 	}
 
-	.area-detail-preview-frame {
-		padding: 10px;
-	}
-
-	.area-detail-file-info {
-		align-items: stretch;
-		flex-direction: column;
-		gap: 8px;
-	}
-
-	.area-detail-file-actions {
-		justify-content: flex-start;
+	.area-detail-stage {
+		padding: 16px;
 	}
 
 	.area-detail-sidebar-scroll {
@@ -35,16 +19,11 @@
 	}
 
 	.area-detail-actions {
-		align-items: stretch;
-		flex-direction: column;
 		padding: 10px 14px;
 	}
 
-	.area-detail-action-group {
-		width: 100%;
-	}
-
-	.area-detail-action-group button {
+	.area-detail-actions button {
 		flex: 1 1 auto;
+		justify-content: center;
 	}
 }

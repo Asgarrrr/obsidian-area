@@ -6,7 +6,7 @@ bun.build.ts concatenates these files in this order:
 2. src/styles/gallery-toolbar.css
 3. src/styles/gallery-grid.css
 4. src/styles/gallery-cards.css
-5. src/styles/detail-modal.css
+5. src/styles/detail-view.css
 6. src/styles/token-editors.css
 7. src/styles/schema-modal.css
 8. src/styles/utilities.css

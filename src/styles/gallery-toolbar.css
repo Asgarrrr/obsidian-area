@@ -47,6 +47,10 @@
 	flex: 0 0 auto;
 }
 
+.area-tag-filter:active {
+	transform: scale(0.97);
+}
+
 .area-tag-filter .tag {
 	pointer-events: none;
 }

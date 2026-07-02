@@ -63,7 +63,7 @@ const STYLE_SOURCES = [
 	"src/styles/gallery-toolbar.css",
 	"src/styles/gallery-grid.css",
 	"src/styles/gallery-cards.css",
-	"src/styles/detail-modal.css",
+	"src/styles/detail-view.css",
 	"src/styles/token-editors.css",
 	"src/styles/schema-modal.css",
 	"src/styles/utilities.css",
@@ -285,14 +285,10 @@ async function main() {
 	if (!isProd) {
 		const pluginDir = resolve(".obsidian", "plugins", pluginId);
 		const isLinked =
-			existsSync(pluginDir) ||
-			process.env.OBSIDIAN_VAULT ||
-			hasCli;
+			existsSync(pluginDir) || process.env.OBSIDIAN_VAULT || hasCli;
 		if (!isLinked) {
 			console.log("");
-			console.log(
-				"Tip: link this plugin to a vault for hot reload:",
-			);
+			console.log("Tip: link this plugin to a vault for hot reload:");
 			console.log("  bun run dev:install ~/path/to/your/vault");
 		}
 

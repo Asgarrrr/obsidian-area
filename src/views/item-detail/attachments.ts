@@ -5,15 +5,18 @@ interface FileExplorerLike {
 	revealInFolder(file: TFile): void;
 }
 
-interface AreaDetailApp extends App {
-	internalPlugins?: {
-		getEnabledPluginById(id: "file-explorer"): FileExplorerLike | null;
-	};
+interface AppWithSystemFolder {
 	showInFolder?: (path: string) => void;
 }
 
 interface AreaDetailAdapter {
 	getFullPath?: (path: string) => string;
+}
+
+interface AppWithInternalPlugins {
+	internalPlugins?: {
+		getEnabledPluginById(id: string): FileExplorerLike | null;
+	};
 }
 
 export function getAttachmentFile(app: App, item: AreaItem): TFile | null {
@@ -35,7 +38,10 @@ export function getShortPath(path: string): string {
 }
 
 export function canShowAttachmentInSystemFolder(app: App): boolean {
-	return Platform.isDesktopApp && typeof getExtendedApp(app).showInFolder === "function";
+	return (
+		Platform.isDesktopApp &&
+		typeof getExtendedApp(app).showInFolder === "function"
+	);
 }
 
 export async function openAttachment(
@@ -69,7 +75,10 @@ export function revealAttachment(app: App, item: AreaItem): boolean {
 	return true;
 }
 
-export function showAttachmentInSystemFolder(app: App, item: AreaItem): boolean {
+export function showAttachmentInSystemFolder(
+	app: App,
+	item: AreaItem,
+): boolean {
 	const file = getAttachmentFile(app, item);
 	if (!file) {
 		new Notice("Attachment not found");
@@ -80,8 +89,8 @@ export function showAttachmentInSystemFolder(app: App, item: AreaItem): boolean 
 	return true;
 }
 
-function getExtendedApp(app: App): AreaDetailApp {
-	return app as AreaDetailApp;
+function getExtendedApp(app: App): AppWithSystemFolder {
+	return app as AppWithSystemFolder;
 }
 
 function getFullPath(app: App, path: string): string {
@@ -90,8 +99,8 @@ function getFullPath(app: App, path: string): string {
 }
 
 function getFileExplorer(app: App): FileExplorerLike | null {
-	const fileExplorer =
-		getExtendedApp(app).internalPlugins?.getEnabledPluginById("file-explorer");
+	const internalPlugins = (app as AppWithInternalPlugins).internalPlugins;
+	const fileExplorer = internalPlugins?.getEnabledPluginById("file-explorer");
 	if (fileExplorer) return fileExplorer;
 
 	for (const leaf of app.workspace.getLeavesOfType("file-explorer")) {

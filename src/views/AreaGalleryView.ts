@@ -1,58 +1,38 @@
-import { Notice, TextFileView, type TFile, type WorkspaceLeaf } from "obsidian";
+import { Notice, TextFileView, type WorkspaceLeaf } from "obsidian";
+import { parseAreaFile } from "../areaFile";
 import { VIEW_TYPE_AREA } from "../constants";
 import type AreaPlugin from "../main";
 import type { AreaFile, AreaItem } from "../types";
-import { SchemaEditorModal } from "./SchemaEditorModal";
 import { renderAreaCard } from "./area-gallery/card";
-import { getClipboardImageFiles } from "./area-gallery/clipboard";
-import {
-	type SortOrder,
-	getAllTags,
-	getFilteredItems,
-	getTagSignature,
-	pruneActiveTagFilters,
-} from "./area-gallery/filtering";
-import {
-	hasAreaItemWithVaultPath,
-	importImageFiles,
-	importVaultImageFiles,
-	type ImportImageResult,
-} from "./area-gallery/importImages";
-import { showImportImageResultNotice } from "./area-gallery/importNotices";
-import { renderAreaToolbar } from "./area-gallery/toolbar";
-import { openVaultImageSuggest } from "./area-gallery/vaultImageSuggest";
-
-const SEARCH_DEBOUNCE_MS = 120;
+import { renderEmptyState } from "./area-gallery/emptyState";
+import { GalleryToolbarController } from "./area-gallery/galleryToolbar";
+import { AreaImportController } from "./area-gallery/importController";
+import { MasonryController } from "./area-gallery/masonry";
 
 export class AreaGalleryView extends TextFileView {
 	private areaData: AreaFile = { version: "1", name: "", items: [] };
-	private activeTagFilters: Set<string> = new Set();
-	private dragDepth = 0;
 	private gridEl: HTMLElement | null = null;
-	private renderedTagSignature = "";
-	private searchQuery = "";
-	private searchRenderTimer: number | undefined;
-	private sortOrder: SortOrder = "newest";
-	private toolbarEl: HTMLElement | null = null;
+	private masonry = new MasonryController();
+	private imports: AreaImportController;
+	private toolbar: GalleryToolbarController;
+	// Set to the original bytes when a file can't be parsed, so getViewData can
+	// round-trip them verbatim instead of overwriting a recoverable file.
+	private unreadableData: string | null = null;
 
 	constructor(
 		leaf: WorkspaceLeaf,
 		private plugin: AreaPlugin,
 	) {
 		super(leaf);
+		this.imports = new AreaImportController(this, plugin);
+		this.toolbar = new GalleryToolbarController(this, plugin);
 	}
 
 	onload(): void {
 		this.contentEl.addClass("area-view");
-		this.registerDragAndDrop();
-		this.registerPaste();
-	}
-
-	onunload(): void {
-		if (this.searchRenderTimer !== undefined) {
-			window.clearTimeout(this.searchRenderTimer);
-			this.searchRenderTimer = undefined;
-		}
+		this.register(() => this.masonry.destroy());
+		this.register(() => this.toolbar.dispose());
+		this.imports.register();
 	}
 
 	getViewType(): string {
@@ -68,20 +48,27 @@ export class AreaGalleryView extends TextFileView {
 	}
 
 	getViewData(): string {
+		// If the file couldn't be read, hand back its original bytes so a save
+		// never clobbers a recoverable file with empty/stale data.
+		if (this.unreadableData !== null) return this.unreadableData;
 		return JSON.stringify(this.areaData, null, 2);
 	}
 
 	setViewData(data: string, _clear: boolean): void {
 		try {
-			this.areaData = JSON.parse(data) as AreaFile;
+			this.areaData = parseAreaFile(data);
+			this.unreadableData = null;
 		} catch {
-			new Notice("Area: could not parse file");
+			this.unreadableData = data;
+			this.areaData = { version: "1", name: "", items: [] };
+			new Notice("Area: couldn't read this file — it won't be modified.");
 		}
 		this.render();
 	}
 
 	clear(): void {
 		this.areaData = { version: "1", name: "", items: [] };
+		this.unreadableData = null;
 		this.render();
 	}
 
@@ -89,55 +76,33 @@ export class AreaGalleryView extends TextFileView {
 		this.contentEl.empty();
 		this.contentEl.addClass("area-view");
 
-		this.renderShell();
-		this.renderToolbar();
+		if (this.unreadableData !== null) {
+			this.renderUnreadableState();
+			return;
+		}
+
+		const toolbarEl = this.contentEl.createDiv("area-toolbar");
+		this.gridEl = this.contentEl.createDiv("area-grid");
+		this.gridEl.dataset.cardSize = this.plugin.settings.cardSize;
+		this.toolbar.render(toolbarEl);
 		this.renderGrid();
 	}
 
+	private renderUnreadableState(): void {
+		// Stop watching the now-detached grid and drop the stale element ref.
+		this.masonry.disconnect();
+		this.gridEl = null;
+		const container = this.contentEl.createDiv("area-grid area-grid--empty");
+		renderEmptyState({ container, kind: "unreadable" });
+	}
+
+	// Called only from the settings size-change path: card size alters the
+	// column width without resizing the grid, so the observer won't fire — relayout.
 	refreshCardSize(): void {
 		if (this.gridEl) {
 			this.gridEl.dataset.cardSize = this.plugin.settings.cardSize;
+			this.masonry.relayout();
 		}
-	}
-
-	private renderShell(): void {
-		this.toolbarEl = this.contentEl.createDiv("area-toolbar");
-		this.gridEl = this.contentEl.createDiv("area-grid");
-		this.refreshCardSize();
-	}
-
-	private renderToolbar(): void {
-		const toolbar = this.toolbarEl;
-		if (!toolbar) return;
-
-		this.renderedTagSignature = renderAreaToolbar({
-			toolbar,
-			areaData: this.areaData,
-			activeTagFilters: this.activeTagFilters,
-			searchQuery: this.searchQuery,
-			sortOrder: this.sortOrder,
-			onConfigureFields: () => {
-				new SchemaEditorModal(this.plugin.app, this.areaData, () =>
-					this.requestSave(),
-				).open();
-			},
-			onImportFiles: () => this.openExternalImagePicker(),
-			onImportVaultImage: () => this.openVaultImagePicker(),
-			onSearchChange: (value) => {
-				this.searchQuery = value.toLowerCase().trim();
-				this.queueGridRender();
-			},
-			onSortOrderChange: (sortOrder) => {
-				this.sortOrder = sortOrder;
-				this.renderGrid();
-			},
-			onTagFilterToggle: (tag) => {
-				this.activeTagFilters.has(tag)
-					? this.activeTagFilters.delete(tag)
-					: this.activeTagFilters.add(tag);
-				this.renderGrid();
-			},
-		});
 	}
 
 	private renderGrid(): void {
@@ -145,212 +110,84 @@ export class AreaGalleryView extends TextFileView {
 		if (!grid) return;
 
 		grid.empty();
-		this.refreshCardSize();
 
-		for (const item of getFilteredItems(this.areaData.items, {
-			activeTagFilters: this.activeTagFilters,
-			searchQuery: this.searchQuery,
-			sortOrder: this.sortOrder,
-		})) {
+		const items = this.toolbar.getVisibleItems(this.areaData.items);
+
+		if (items.length === 0) {
+			// No cards to lay out — stop the observer watching this grid so it
+			// doesn't leak once the next render rebuilds the element.
+			this.masonry.disconnect();
+			grid.addClass("area-grid--empty");
+			const kind = this.areaData.items.length === 0 ? "empty" : "no-results";
+			renderEmptyState({
+				container: grid,
+				kind,
+				onClearFilters:
+					kind === "no-results"
+						? () => {
+								this.toolbar.clearFilters();
+								this.renderGrid();
+							}
+						: undefined,
+			});
+			return;
+		}
+
+		grid.removeClass("area-grid--empty");
+
+		const areaPath = this.file?.path ?? "";
+		items.forEach((item, index) => {
 			renderAreaCard({
 				app: this.plugin.app,
-				areaData: this.areaData,
 				grid,
 				item,
-				onDataChanged: () => this.requestSave(),
-				onStructuralChange: () => {
-					this.requestSave();
-					this.refreshTagsAndGrid();
-				},
-				onTagsChanged: () => this.refreshTagsAndGrid(),
+				areaPath,
+				siblings: items,
+				index,
 			});
-		}
-	}
+		});
 
-	private queueGridRender(): void {
-		if (this.searchRenderTimer !== undefined) {
-			window.clearTimeout(this.searchRenderTimer);
-		}
-
-		this.searchRenderTimer = window.setTimeout(() => {
-			this.searchRenderTimer = undefined;
-			this.renderGrid();
-		}, SEARCH_DEBOUNCE_MS);
+		this.masonry.observe(grid);
 	}
 
 	private refreshTagsAndGrid(): void {
-		this.refreshToolbarIfTagsChanged();
+		this.toolbar.refreshIfTagsChanged(this.areaData.items);
 		this.renderGrid();
 	}
 
-	private refreshToolbarIfTagsChanged(): void {
-		const allTags = getAllTags(this.areaData.items);
-		const nextTagSignature = getTagSignature(allTags);
-		const didPruneActiveFilters = pruneActiveTagFilters(
-			this.activeTagFilters,
-			allTags,
-		);
-
-		if (
-			nextTagSignature !== this.renderedTagSignature ||
-			didPruneActiveFilters
-		) {
-			this.renderToolbar();
-		}
+	// Accessors + delegators the masonry/import/toolbar controllers call back on.
+	rerenderGrid(): void {
+		this.renderGrid();
 	}
 
-	private registerDragAndDrop(): void {
-		this.registerDomEvent(this.contentEl, "dragenter", (e: DragEvent) => {
-			if (!hasFileTransfer(e)) return;
-			e.preventDefault();
-			this.dragDepth++;
-			this.contentEl.addClass("area-is-dragging");
-		});
-
-		this.registerDomEvent(this.contentEl, "dragover", (e: DragEvent) => {
-			if (!hasFileTransfer(e)) return;
-			e.preventDefault();
-			if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-		});
-
-		this.registerDomEvent(this.contentEl, "dragleave", (e: DragEvent) => {
-			if (!hasFileTransfer(e)) return;
-			this.dragDepth = Math.max(0, this.dragDepth - 1);
-			if (this.dragDepth === 0) {
-				this.contentEl.removeClass("area-is-dragging");
-			}
-		});
-
-		this.registerDomEvent(this.contentEl, "drop", async (e: DragEvent) => {
-			if (!hasFileTransfer(e)) return;
-			e.preventDefault();
-			this.clearDragState();
-
-			const files = Array.from(e.dataTransfer?.files ?? []);
-			if (files.length === 0) return;
-			await this.importFiles(files);
-		});
+	getAreaData(): AreaFile {
+		return this.areaData;
 	}
 
-	private registerPaste(): void {
-		this.registerDomEvent(this.contentEl, "paste", async (e: ClipboardEvent) => {
-			const files = getClipboardImageFiles(e);
-			if (files.length === 0) {
-				if (!isEditableTarget(e.target)) {
-					new Notice("Area: clipboard has no images.");
-				}
-				return;
-			}
-
-			e.preventDefault();
-			await this.importFiles(files);
-		});
+	getItems(): AreaItem[] {
+		return this.areaData.items;
 	}
 
-	private clearDragState(): void {
-		this.dragDepth = 0;
-		this.contentEl.removeClass("area-is-dragging");
+	// False while the file couldn't be parsed — blocks imports so they don't
+	// write orphan attachments or silently vanish on save.
+	canModify(): boolean {
+		return this.unreadableData === null;
 	}
 
-	async addItem(item: AreaItem): Promise<void> {
-		this.areaData.items.unshift(item);
-		this.requestSave();
+	// Gates the document-level paste handler (activeLeaf is deprecated).
+	isActiveView(): boolean {
+		return this.app.workspace.getActiveViewOfType(AreaGalleryView) === this;
+	}
+
+	notifyItemsChanged(): void {
 		this.refreshTagsAndGrid();
 	}
 
 	openExternalImagePicker(): void {
-		const input = document.createElement("input");
-		input.type = "file";
-		input.accept = "image/*";
-		input.multiple = true;
-		input.style.display = "none";
-		document.body.appendChild(input);
-
-		const cleanup = () => {
-			if (document.body.contains(input)) {
-				document.body.removeChild(input);
-			}
-		};
-
-		this.registerDomEvent(input, "change", async () => {
-			const files = Array.from(input.files ?? []);
-			cleanup();
-			if (files.length > 0) {
-				await this.importFiles(files);
-			}
-		});
-
-		this.registerDomEvent(
-			window,
-			"focus",
-			() => {
-				window.setTimeout(cleanup, 300);
-			},
-			{ once: true },
-		);
-
-		input.click();
+		this.imports.openExternalImagePicker();
 	}
 
 	openVaultImagePicker(): void {
-		openVaultImageSuggest(this.plugin.app, (file) => {
-			this.importVaultFiles([file]);
-		});
+		this.imports.openVaultImagePicker();
 	}
-
-	async importFiles(files: File[]): Promise<void> {
-		const result = await importImageFiles(
-			this.plugin.app,
-			this.plugin.settings.attachmentsDir,
-			files,
-			this.areaData.items,
-		);
-		this.applyImportResult(result);
-	}
-
-	importVaultFiles(files: TFile[]): void {
-		const result = importVaultImageFiles(files, this.areaData.items);
-		this.applyImportResult(result);
-	}
-
-	private applyImportResult(result: ImportImageResult): void {
-		const itemsToAdd: AreaItem[] = [];
-		const skippedDuplicates = [...result.skippedDuplicates];
-
-		for (const item of result.items) {
-			if (
-				hasAreaItemWithVaultPath(this.areaData.items, item.vaultPath) ||
-				hasAreaItemWithVaultPath(itemsToAdd, item.vaultPath)
-			) {
-				skippedDuplicates.push({
-					name: item.title ?? item.vaultPath,
-					vaultPath: item.vaultPath,
-				});
-				continue;
-			}
-
-			itemsToAdd.push(item);
-		}
-
-		if (itemsToAdd.length > 0) {
-			this.areaData.items.unshift(...itemsToAdd);
-			this.requestSave();
-			this.refreshTagsAndGrid();
-		}
-
-		showImportImageResultNotice({
-			...result,
-			items: itemsToAdd,
-			skippedDuplicates,
-		});
-	}
-}
-
-function hasFileTransfer(event: DragEvent): boolean {
-	return Array.from(event.dataTransfer?.types ?? []).includes("Files");
-}
-
-function isEditableTarget(target: EventTarget | null): boolean {
-	if (!(target instanceof HTMLElement)) return false;
-	return target.closest("input, textarea, [contenteditable='true']") !== null;
 }

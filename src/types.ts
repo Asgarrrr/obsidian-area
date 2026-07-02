@@ -7,7 +7,7 @@ export type FieldValue = string | number;
 // One field definition in an area's schema
 export interface AreaFieldDef {
 	id: string; // stable key — never renamed after creation
-	label: string; // display name, editable
+	label: string;
 	type: FieldType;
 	options?: string[]; // only used when type === "select"
 }
@@ -20,6 +20,7 @@ export interface AreaItem {
 	tags: string[];
 	addedAt: number;
 	title?: string;
+	aspectRatio?: number; // width / height, captured at import so masonry can size the card before the image loads
 	fields?: Record<string, FieldValue>; // values keyed by AreaFieldDef.id
 }
 

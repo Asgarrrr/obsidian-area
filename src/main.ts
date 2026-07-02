@@ -1,12 +1,13 @@
 import { Plugin } from "obsidian";
-import { FILE_EXT, VIEW_TYPE_AREA } from "./constants";
+import { FILE_EXT, VIEW_TYPE_AREA, VIEW_TYPE_AREA_DETAIL } from "./constants";
 import { DEFAULT_SETTINGS, AreaSettingTab } from "./settings";
 import type { AreaPluginSettings } from "./settings";
 import { AreaGalleryView } from "./views/AreaGalleryView";
+import { ItemDetailView } from "./views/ItemDetailView";
 import { registerCommands, openAreaCommand } from "./commands/index";
 
 export default class AreaPlugin extends Plugin {
-	settings: AreaPluginSettings;
+	settings: AreaPluginSettings = DEFAULT_SETTINGS;
 
 	async onload() {
 		await this.loadSettings();
@@ -14,6 +15,11 @@ export default class AreaPlugin extends Plugin {
 		this.registerView(
 			VIEW_TYPE_AREA,
 			(leaf) => new AreaGalleryView(leaf, this),
+		);
+
+		this.registerView(
+			VIEW_TYPE_AREA_DETAIL,
+			(leaf) => new ItemDetailView(leaf, this),
 		);
 
 		this.registerExtensions([FILE_EXT], VIEW_TYPE_AREA);
@@ -24,10 +30,6 @@ export default class AreaPlugin extends Plugin {
 		this.addRibbonIcon("layout-grid", "Open area", () => {
 			openAreaCommand(this);
 		});
-	}
-
-	onunload() {
-		this.app.workspace.detachLeavesOfType(VIEW_TYPE_AREA);
 	}
 
 	async loadSettings() {

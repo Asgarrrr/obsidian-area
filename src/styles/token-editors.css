@@ -9,7 +9,9 @@
 	gap: 5px;
 	width: 100%;
 	min-height: 32px;
-	padding: 5px 7px;
+	/* 4px vertical keeps the box at 32px (== Title/Source URL) once a 22px pill
+	   sits inside; 8px horizontal aligns the first pill with the text inputs. */
+	padding: 4px 8px;
 	border: var(--input-border-width) solid var(--background-modifier-border);
 	border-radius: var(--input-radius);
 	background: var(--background-modifier-form-field);
@@ -17,8 +19,12 @@
 }
 
 .area-tag-editor:focus-within {
-	border-color: var(--background-modifier-border-focus);
 	background: var(--background-modifier-form-field-highlighted);
+	/* Same subtle ring as the text fields (--background-modifier-border-focus),
+	   not --interactive-accent — the accent is near-white in some themes and
+	   reads as a loud white halo. A box-shadow is used rather than a border
+	   shift because the theme overrides border-color on native inputs. */
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
 }
 
 .area-tag-editor-pill {
@@ -43,7 +49,10 @@
 	box-shadow: none;
 }
 
-.area-tag-editor-input {
+/* Scoped under .area-tag-editor so height/padding beat Obsidian's
+   input[type=text] (0,1,1); a bare 22px input keeps the box at 32px (== the
+   text fields) instead of inheriting the native 32px input height → 42px box. */
+.area-tag-editor .area-tag-editor-input {
 	width: 100%;
 	height: 22px;
 	min-height: 22px;
@@ -124,4 +133,17 @@
 	background: transparent;
 	box-shadow: none;
 	outline: none;
+}
+
+/* Enlarge the pill "remove" tap target without changing its visual size. */
+.area-tag-editor-pill .multi-select-pill-remove-button,
+.area-token-pill .multi-select-pill-remove-button {
+	position: relative;
+}
+
+.area-tag-editor-pill .multi-select-pill-remove-button::before,
+.area-token-pill .multi-select-pill-remove-button::before {
+	content: "";
+	position: absolute;
+	inset: -6px;
 }

@@ -8,6 +8,8 @@ import {
 	TextComponent,
 } from "obsidian";
 import type { AreaFile, AreaFieldDef, FieldType } from "../types";
+import { renderSelectOptionsEditor } from "./schema-editor/optionsEditor";
+import { createFieldId, parseSelectOptions } from "./schema-editor/schemaUtils";
 
 const FIELD_TYPES: FieldType[] = ["text", "url", "number", "select"];
 const DELETE_CONFIRM_MS = 2500;
@@ -86,7 +88,7 @@ export class SchemaEditorModal extends Modal {
 
 		if (def.type === "select") {
 			const optWrap = row.createDiv("area-schema-options");
-			this.renderOptions(optWrap, def);
+			renderSelectOptionsEditor(optWrap, def, this.onDataChanged);
 		}
 
 		const controls = row.createDiv("area-schema-row-controls");
@@ -129,60 +131,6 @@ export class SchemaEditorModal extends Modal {
 				this.handleDeleteClick(delBtn, schema, index);
 			});
 		delBtn.buttonEl.setAttribute("aria-label", "Delete field");
-	}
-
-	private renderOptions(container: HTMLElement, def: AreaFieldDef): void {
-		container.empty();
-		if (!def.options) def.options = [];
-		const options = def.options;
-
-		const wrap = container.createDiv(
-			"multi-select-container area-token-editor",
-		);
-
-		const rebuild = () => {
-			wrap.empty();
-			for (const opt of options) {
-				const pill = wrap.createDiv("multi-select-pill area-token-pill");
-				pill.createDiv({ cls: "multi-select-pill-content", text: opt });
-
-				const removeButton = pill.createDiv(
-					"multi-select-pill-remove-button clickable-icon",
-				);
-				removeButton.setAttribute("aria-label", `Remove option ${opt}`);
-				setIcon(removeButton, "x");
-				removeButton.addEventListener("click", (evt) => {
-					evt.preventDefault();
-					evt.stopPropagation();
-					def.options = options.filter((o) => o !== opt);
-					this.onDataChanged();
-					this.renderOptions(container, def);
-				});
-			}
-
-			const inputWrap = wrap.createDiv("area-token-editor-input-container");
-			const inputEl = inputWrap.createEl("input", {
-				type: "text",
-				cls: "area-token-editor-input",
-			});
-			inputEl.placeholder = "Add option...";
-			inputEl.addEventListener("keydown", (e) => {
-				if (e.key !== "Enter" && e.key !== ",") return;
-				e.preventDefault();
-				const val = inputEl.value.trim().replace(/,+$/, "");
-				if (val && !hasOption(options, val)) {
-					options.push(val);
-					this.onDataChanged();
-				}
-				inputEl.value = "";
-				rebuild();
-			});
-			wrap.onclick = () => {
-				inputEl.focus();
-			};
-		};
-
-		rebuild();
 	}
 
 	private renderAddForm(container: HTMLElement): void {
@@ -283,31 +231,4 @@ export class SchemaEditorModal extends Modal {
 		setIcon(button.buttonEl, "trash-2");
 		button.setTooltip("Delete field");
 	}
-}
-
-function createFieldId(label: string): string {
-	return (
-		label
-			.trim()
-			.toLowerCase()
-			.normalize("NFKD")
-			.replace(/[\u0300-\u036f]/g, "")
-			.replace(/[^a-z0-9]+/g, "_")
-			.replace(/^_+|_+$/g, "")
-			.replace(/_+/g, "_") || "field"
-	);
-}
-
-function parseSelectOptions(value: string): string[] {
-	const options: string[] = [];
-	for (const option of value.split(",")) {
-		const trimmed = option.trim();
-		if (trimmed && !hasOption(options, trimmed)) options.push(trimmed);
-	}
-	return options;
-}
-
-function hasOption(options: string[], value: string): boolean {
-	const key = value.toLowerCase();
-	return options.some((option) => option.toLowerCase() === key);
 }
