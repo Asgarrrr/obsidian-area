@@ -59,6 +59,16 @@ Build output: `main.js` + `styles.css` at the repo root (required by Obsidian).
 
 **Mobile** — `isDesktopOnly: false` in manifest means mobile is in scope. Avoid Node/Electron APIs unless `isDesktopOnly` is set to `true`.
 
+**Styles** — one file per area under `src/styles/`, listed explicitly in `bun.build.ts` and concatenated into the root `styles.css`. A new stylesheet must be added to that list or it silently never ships.
+
+## Gotchas
+
+**Dot-folders are invisible to the vault API.** The default attachments directory is `.attachments/area`, and Obsidian does not index any folder whose name starts with a dot. `vault.getAbstractFileByPath()` returns `null` and `vault.getFiles()` skips them, so anything needing a `TFile` (open in a tab, reveal in the file explorer) cannot work for stored images. `vault.adapter` (`list`, `readBinary`, `writeBinary`, `stat`, `getResourcePath`) sees them fine — prefer adapter calls and path-based APIs like `app.showInFolder()` for attachment work.
+
+**Thumbnails** live at `<attachmentsDir>/.thumbs/<item.id>.webp`, downscaled to 640px on the long edge (`src/views/area-gallery/thumbnails.ts`). Generated on import, backfilled by the `area:generate-thumbnails` command, deleted with the item. Everything is best-effort: any failure returns `undefined` and cards fall back to the original, with a self-clearing `img.onerror` covering a thumbnail deleted behind the plugin's back. GIF and SVG are skipped.
+
+**Facet filtering** groups tags by the namespace before the first `/` (`palette/bordeaux` → facet "Palette"). Selection stays a flat `Set<string>`; the semantics live in the matcher — OR within a facet, AND across facets (`src/views/area-gallery/filtering.ts`). Obsidian's `Menu` closes on every click and can't do multi-select, hence the hand-rolled popover in `facetMenu.ts`, which is a module-level singleton and must be closed via `closeFacetMenu()` whenever its anchor is destroyed.
+
 ## Obsidian API Surface (relevant for this plugin)
 
 - `ItemView` / `WorkspaceLeaf` — register custom view types (`this.registerView`)
