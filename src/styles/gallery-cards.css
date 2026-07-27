@@ -4,6 +4,18 @@
 	transition: transform var(--area-dur) var(--area-ease);
 }
 
+.area-card:focus-visible {
+	outline: none;
+}
+
+/* The ring hugs the media tile rather than the card box, so it traces the
+   rounded image instead of boxing in the caption underneath. */
+.area-card:focus-visible .area-card-media {
+	box-shadow:
+		0 0 0 2px var(--background-primary),
+		0 0 0 4px var(--interactive-accent);
+}
+
 .area-card:hover {
 	transform: scale(1.02);
 	/* Lift above neighbours while scaled up. */
@@ -35,9 +47,12 @@
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	line-height: 1.3;
-	white-space: nowrap;
+	/* Two lines: titles here are descriptive sentences, and one ellipsised line
+	   cut them so early they stopped distinguishing one card from the next. */
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
 	overflow: hidden;
-	text-overflow: ellipsis;
 }
 
 .area-card-overlay {
@@ -69,13 +84,26 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px;
+	/* Leave the source badge's corner clear. */
+	padding-right: 24px;
 }
 
-.area-card-tags .tag {
+/* Deliberately smaller than the tag tokens elsewhere: on a card they annotate
+   the image, they don't compete with it. */
+.area-card-tags .tag,
+.area-card-tags-more {
 	max-width: 100%;
 	overflow: hidden;
+	font-size: var(--font-ui-smaller);
+	line-height: 1.2;
 	text-overflow: ellipsis;
+	white-space: nowrap;
 	pointer-events: none;
+}
+
+.area-card-tags-more {
+	align-self: center;
+	color: rgba(255, 255, 255, 0.75);
 }
 
 .area-card-source {

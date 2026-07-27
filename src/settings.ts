@@ -10,12 +10,14 @@ import type { ItemDetailView } from "./views/ItemDetailView";
 
 export interface AreaPluginSettings {
 	cardSize: "s" | "m" | "l";
+	showCardTitles: boolean;
 	attachmentsDir: string;
 	hideDetailHeader: boolean;
 }
 
 export const DEFAULT_SETTINGS: AreaPluginSettings = {
 	cardSize: "m",
+	showCardTitles: true,
 	attachmentsDir: ATTACHMENTS_DIR,
 	hideDetailHeader: true,
 };
@@ -47,6 +49,23 @@ export class AreaSettingTab extends PluginSettingTab {
 							.getLeavesOfType(VIEW_TYPE_AREA)
 							.forEach((leaf) => {
 								(leaf.view as AreaGalleryView).refreshCardSize?.();
+							});
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Show card titles")
+			.setDesc("Caption gallery cards with their title, over two lines.")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.areaPlugin.settings.showCardTitles)
+					.onChange(async (value) => {
+						this.areaPlugin.settings.showCardTitles = value;
+						await this.areaPlugin.saveSettings();
+						this.app.workspace
+							.getLeavesOfType(VIEW_TYPE_AREA)
+							.forEach((leaf) => {
+								(leaf.view as AreaGalleryView).rerenderGrid?.();
 							});
 					}),
 			);

@@ -5,6 +5,10 @@ import { openItemDetailView } from "../item-detail/openItemDetail";
 import { getFileName } from "../item-detail/attachments";
 import { getValidSourceUrl } from "../item-detail/sourceActions";
 
+// A board is meant to be looked at. Past a few tags the overlay stops annotating
+// the image and starts hiding it, so the rest is left to the detail panel.
+const MAX_OVERLAY_TAGS = 3;
+
 interface RenderAreaCardOptions {
 	app: App;
 	grid: HTMLElement;
@@ -14,6 +18,7 @@ interface RenderAreaCardOptions {
 	areaPath: string;
 	siblings: AreaItem[];
 	index: number;
+	showTitle: boolean;
 }
 
 export function renderAreaCard({
@@ -23,6 +28,7 @@ export function renderAreaCard({
 	areaPath,
 	siblings,
 	index,
+	showTitle,
 }: RenderAreaCardOptions): void {
 	const card = grid.createDiv("area-card");
 
@@ -37,7 +43,17 @@ export function renderAreaCard({
 	const media = card.createDiv("area-card-media");
 	const img = media.createEl("img");
 	img.loading = "lazy";
-	img.src = app.vault.adapter.getResourcePath(item.vaultPath);
+	img.draggable = false;
+	// Cards render the downscaled copy when the import produced one; a thumbnail
+	// deleted behind our back falls back to the original rather than a broken
+	// tile. `onerror` is cleared first so the fallback can't loop on itself.
+	if (item.thumbPath) {
+		img.onerror = () => {
+			img.onerror = null;
+			img.src = app.vault.adapter.getResourcePath(item.vaultPath);
+		};
+	}
+	img.src = app.vault.adapter.getResourcePath(item.thumbPath ?? item.vaultPath);
 
 	// Reject anything that isn't http(s) — a .area file is shareable JSON, so a
 	// raw item.sourceUrl could be a `javascript:` URL that runs on click.
@@ -48,9 +64,19 @@ export function renderAreaCard({
 	if (item.tags.length > 0 || sourceUrl) {
 		const overlay = media.createDiv("area-card-overlay");
 		const tagRow = overlay.createDiv("area-card-tags");
-		for (const tag of item.tags) {
+		for (const tag of item.tags.slice(0, MAX_OVERLAY_TAGS)) {
 			renderAreaTagToken(tagRow, tag);
 		}
+
+		const hiddenTags = item.tags.length - MAX_OVERLAY_TAGS;
+		if (hiddenTags > 0) {
+			const more = tagRow.createSpan({
+				cls: "area-card-tags-more",
+				text: `+${hiddenTags}`,
+			});
+			more.setAttribute("title", item.tags.slice(MAX_OVERLAY_TAGS).join(", "));
+		}
+
 		if (sourceUrl) {
 			const link = overlay.createEl("a", { cls: "area-card-source" });
 			link.href = sourceUrl;
@@ -64,16 +90,34 @@ export function renderAreaCard({
 	}
 
 	const displayTitle = getDisplayTitle(item);
-	if (displayTitle) {
+	if (showTitle && displayTitle) {
 		card.createDiv({ cls: "area-card-title", text: displayTitle });
 	}
 
-	card.addEventListener("click", () => {
+	// The card is the primary control of this view, so it has to answer to the
+	// keyboard as well as the mouse — without this the :focus-within overlay rule
+	// could never fire either.
+	card.tabIndex = 0;
+	card.setAttribute("role", "button");
+	card.setAttribute(
+		"aria-label",
+		displayTitle ?? getFileName(item.vaultPath) ?? "Area item",
+	);
+
+	const open = () => {
 		void openItemDetailView(app, {
 			areaPath,
 			siblingIds: siblings.map((sibling) => sibling.id),
 			index,
 		});
+	};
+
+	card.addEventListener("click", open);
+	card.addEventListener("keydown", (evt) => {
+		if (evt.key !== "Enter" && evt.key !== " ") return;
+		// Space would otherwise scroll the grid out from under the card.
+		evt.preventDefault();
+		open();
 	});
 }
 

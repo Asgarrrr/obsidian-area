@@ -137,6 +137,7 @@ export class AreaGalleryView extends TextFileView {
 		grid.removeClass("area-grid--empty");
 
 		const areaPath = this.file?.path ?? "";
+		const showTitle = this.plugin.settings.showCardTitles;
 		items.forEach((item, index) => {
 			renderAreaCard({
 				app: this.plugin.app,
@@ -145,6 +146,7 @@ export class AreaGalleryView extends TextFileView {
 				areaPath,
 				siblings: items,
 				index,
+				showTitle,
 			});
 		});
 
