@@ -78,3 +78,23 @@
 	white-space: nowrap;
 	flex: 0 0 auto;
 }
+
+/* --- Confirm dialog --- */
+
+.area-confirm-modal h3 {
+	margin: 0 0 8px;
+}
+
+.area-confirm-modal p {
+	margin: 0 0 18px;
+	color: var(--text-muted);
+	line-height: 1.5;
+	/* The message carries the subject on its own line above the consequence. */
+	white-space: pre-line;
+}
+
+.area-confirm-modal-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}

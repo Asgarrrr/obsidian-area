@@ -5,7 +5,7 @@ export function iconButton(
 	container: HTMLElement,
 	icon: string,
 	label: string,
-	onClick: () => void,
+	onClick: (evt: MouseEvent) => void,
 ): ButtonComponent {
 	const button = new ButtonComponent(container)
 		.setIcon(icon)

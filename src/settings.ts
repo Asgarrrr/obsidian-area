@@ -89,7 +89,11 @@ export class AreaSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Attachments folder")
-			.setDesc("Vault-relative path where dropped images are saved.")
+			.setDesc(
+				"Vault-relative path where dropped images are saved. Folders " +
+					"starting with a dot stay hidden from Obsidian, so images stored " +
+					"there cannot be opened in a tab or revealed in Files.",
+			)
 			.addText((text) =>
 				text
 					.setPlaceholder(ATTACHMENTS_DIR)

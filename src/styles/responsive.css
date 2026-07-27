@@ -1,4 +1,34 @@
 @media (max-width: 720px) {
+	/* Search and facets stop competing for one row: search takes the full width,
+	   the facet strip scrolls horizontally underneath it. */
+	.area-toolbar {
+		flex-wrap: wrap;
+	}
+
+	.area-toolbar-left {
+		flex: 1 1 100%;
+		flex-wrap: wrap;
+	}
+
+	.area-search-container {
+		flex: 1 1 100%;
+		max-width: none;
+	}
+
+	.area-facets {
+		flex: 1 1 100%;
+	}
+
+	.area-toolbar-right {
+		flex: 1 1 100%;
+		justify-content: space-between;
+	}
+
+	.area-sort-select {
+		width: auto;
+		max-width: 170px;
+	}
+
 	.area-detail-view-body {
 		grid-template-columns: 1fr;
 		grid-template-rows: minmax(220px, 42vh) minmax(0, 1fr);
@@ -13,6 +43,15 @@
 		padding: 16px;
 	}
 
+	/* Nothing hovers on touch, so the paging chevrons have to stay visible. */
+	button.area-detail-stage-nav {
+		opacity: 1;
+	}
+
+	button.area-detail-stage-nav:disabled {
+		opacity: 0.3;
+	}
+
 	.area-detail-sidebar-scroll {
 		padding: 14px;
 		gap: 16px;
@@ -20,10 +59,5 @@
 
 	.area-detail-actions {
 		padding: 10px 14px;
-	}
-
-	.area-detail-actions button {
-		flex: 1 1 auto;
-		justify-content: center;
 	}
 }

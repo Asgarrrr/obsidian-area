@@ -1,18 +1,15 @@
-import {
-	ButtonComponent,
-	ItemView,
-	Notice,
-	type WorkspaceLeaf,
-} from "obsidian";
+import { ItemView, Menu, type WorkspaceLeaf } from "obsidian";
 import { VIEW_TYPE_AREA_DETAIL } from "../constants";
 import type AreaPlugin from "../main";
 import type { AreaFile, AreaItem } from "../types";
+import { removeThumbnail } from "./area-gallery/thumbnails";
+import { ConfirmModal } from "./ConfirmModal";
 import { DetailSidebar } from "./item-detail/detailSidebar";
 import { findAreaGallery } from "./item-detail/galleryBridge";
+import { getFileName } from "./item-detail/attachments";
 import type { ItemDetailPayload } from "./item-detail/openItemDetail";
 import { clamp, iconButton } from "./item-detail/viewHelpers";
 
-const DELETE_CONFIRM_MS = 4000;
 const EMPTY_AREA: AreaFile = { version: "1", name: "", items: [] };
 // Toggled on containerEl (.workspace-leaf-content); a CSS rule hides its direct
 // child .view-header — Obsidian's own header bar — when the setting is on.
@@ -29,8 +26,6 @@ export class ItemDetailView extends ItemView {
 	private siblingIds: string[] = [];
 	private index = 0;
 	private sidebar: DetailSidebar | null = null;
-	private deleteConfirmPending = false;
-	private deleteConfirmTimer: number | null = null;
 
 	constructor(
 		leaf: WorkspaceLeaf,
@@ -91,7 +86,6 @@ export class ItemDetailView extends ItemView {
 	}
 
 	async onClose(): Promise<void> {
-		this.clearDeleteConfirm();
 		this.sidebar?.dispose();
 		this.sidebar = null;
 		this.contentEl.empty();
@@ -120,16 +114,16 @@ export class ItemDetailView extends ItemView {
 			return;
 		}
 
-		this.clearDeleteConfirm();
 		this.contentEl.empty();
 
 		const toolbar = this.contentEl.createDiv("area-detail-view-toolbar");
-		this.renderToolbar(toolbar);
+		this.renderToolbar(toolbar, item);
 
 		const body = this.contentEl.createDiv("area-detail-view-body");
 		const stage = this.renderStage(body, item);
 
 		if (this.siblingIds.length > 1) {
+			this.renderStageNav(stage);
 			const hint = stage.createDiv("area-detail-view-hint");
 			hint.createSpan({
 				cls: "area-detail-view-hint-count",
@@ -148,12 +142,28 @@ export class ItemDetailView extends ItemView {
 		this.contentEl.focus();
 	}
 
-	private renderToolbar(toolbar: HTMLElement): void {
+	private renderToolbar(toolbar: HTMLElement, item: AreaItem): void {
+		// The bar was 48px of empty space with two icons pinned to the right; the
+		// item's own name is the obvious thing to put in it.
+		const title = toolbar.createDiv({
+			cls: "area-detail-view-title",
+			text: item.title?.trim() || getFileName(item.vaultPath),
+		});
+		title.setAttribute("title", item.vaultPath);
+
 		const actions = toolbar.createDiv("area-detail-view-actions");
-		const deleteButton = iconButton(actions, "trash-2", "Delete image", () =>
-			this.handleDeleteClick(deleteButton),
-		);
-		deleteButton.buttonEl.addClass("area-detail-toolbar-danger");
+		// Delete lives behind the overflow menu rather than one icon away from
+		// Close, where a mis-aimed click used to land on a destructive action.
+		iconButton(actions, "more-horizontal", "More actions", (evt) => {
+			const menu = new Menu();
+			menu.addItem((menuItem) =>
+				menuItem
+					.setIcon("trash-2")
+					.setTitle("Remove from area")
+					.onClick(() => this.confirmDelete(item)),
+			);
+			menu.showAtMouseEvent(evt);
+		});
 
 		iconButton(actions, "x", "Close", () => this.leaf.detach());
 	}
@@ -161,6 +171,8 @@ export class ItemDetailView extends ItemView {
 	private renderStage(container: HTMLElement, item: AreaItem): HTMLElement {
 		const stage = container.createDiv("area-detail-stage");
 		const img = stage.createEl("img", { cls: "area-detail-stage-img" });
+		// Always the original here: the stage is the one place the full resolution
+		// is worth paying for.
 		img.src = this.app.vault.adapter.getResourcePath(item.vaultPath);
 		img.alt = item.title ?? "";
 		img.decoding = "async";
@@ -168,31 +180,31 @@ export class ItemDetailView extends ItemView {
 		return stage;
 	}
 
-	private handleDeleteClick(button: ButtonComponent): void {
-		if (this.deleteConfirmPending) {
-			this.deleteCurrent();
-			return;
-		}
+	// ←/→ worked, but nothing on screen was clickable, so paging through a board
+	// was keyboard-only.
+	private renderStageNav(stage: HTMLElement): void {
+		const prev = iconButton(stage, "chevron-left", "Previous image", () =>
+			this.setIndex(this.index - 1),
+		);
+		prev.buttonEl.addClass("area-detail-stage-nav");
+		prev.buttonEl.addClass("area-detail-stage-nav--prev");
+		prev.setDisabled(this.index === 0);
 
-		this.deleteConfirmPending = true;
-		button.buttonEl.addClass("is-confirming");
-		button.setTooltip("Click again to delete");
-		new Notice("Click again to delete. The attachment stays in your vault.");
-
-		this.deleteConfirmTimer = window.setTimeout(() => {
-			this.deleteConfirmTimer = null;
-			this.deleteConfirmPending = false;
-			button.buttonEl.removeClass("is-confirming");
-			button.setTooltip("Delete image");
-		}, DELETE_CONFIRM_MS);
+		const next = iconButton(stage, "chevron-right", "Next image", () =>
+			this.setIndex(this.index + 1),
+		);
+		next.buttonEl.addClass("area-detail-stage-nav");
+		next.buttonEl.addClass("area-detail-stage-nav--next");
+		next.setDisabled(this.index === this.siblingIds.length - 1);
 	}
 
-	private clearDeleteConfirm(): void {
-		if (this.deleteConfirmTimer !== null) {
-			window.clearTimeout(this.deleteConfirmTimer);
-			this.deleteConfirmTimer = null;
-		}
-		this.deleteConfirmPending = false;
+	private confirmDelete(item: AreaItem): void {
+		new ConfirmModal(this.app, {
+			title: "Remove from area",
+			message: `${item.title?.trim() || getFileName(item.vaultPath)}\n\nThe image file stays in your vault.`,
+			confirmText: "Remove",
+			onConfirm: () => this.deleteCurrent(),
+		}).open();
 	}
 
 	private setIndex(next: number): void {
@@ -214,6 +226,9 @@ export class ItemDetailView extends ItemView {
 		const dataIndex = items.findIndex((candidate) => candidate.id === item.id);
 		if (dataIndex !== -1) items.splice(dataIndex, 1);
 		this.siblingIds.splice(this.index, 1);
+		// The original stays in the vault by design; its generated thumbnail is
+		// ours, so nothing else will ever clean it up.
+		void removeThumbnail(this.app, item);
 		gallery.requestSave();
 		gallery.notifyItemsChanged();
 

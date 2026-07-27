@@ -28,15 +28,6 @@ export function getFileName(path: string): string {
 	return path.split("/").pop() ?? path;
 }
 
-export function getShortPath(path: string): string {
-	const parts = path.split("/");
-	if (parts.length <= 2) return path;
-
-	const parent = parts[parts.length - 2] ?? "";
-	const name = parts[parts.length - 1] ?? path;
-	return parent ? `${parent}/${name}` : name;
-}
-
 export function canShowAttachmentInSystemFolder(app: App): boolean {
 	return (
 		Platform.isDesktopApp &&
@@ -75,18 +66,11 @@ export function revealAttachment(app: App, item: AreaItem): boolean {
 	return true;
 }
 
-export function showAttachmentInSystemFolder(
-	app: App,
-	item: AreaItem,
-): boolean {
-	const file = getAttachmentFile(app, item);
-	if (!file) {
-		new Notice("Attachment not found");
-		return false;
-	}
-
-	getExtendedApp(app).showInFolder?.(getFullPath(app, file.path));
-	return true;
+// Path-based on purpose: this is the one file action that still works when the
+// attachment sits in a dot-folder Obsidian refuses to index, because it hands a
+// filesystem path to the OS rather than looking up a TFile.
+export function showAttachmentInSystemFolder(app: App, item: AreaItem): void {
+	getExtendedApp(app).showInFolder?.(getFullPath(app, item.vaultPath));
 }
 
 function getExtendedApp(app: App): AppWithSystemFolder {

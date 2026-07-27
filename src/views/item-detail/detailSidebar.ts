@@ -6,18 +6,19 @@ import {
 	renderAreaTagEditor,
 } from "../TagInput";
 import { getFileExtension } from "../area-gallery/imageFileTypes";
+import { getFileName } from "./attachments";
 import {
-	type SourceActionButtons,
-	renderAttachmentActions,
-	renderSourceActions,
-	syncSourceActionState as syncSourceButtons,
-} from "./actionButtons";
-import { getFileName, getShortPath } from "./attachments";
+	formatAddedAt,
+	formatBytes,
+	formatDimensions,
+	readImageMeta,
+} from "./fileMeta";
 import {
 	renderCustomFieldInput,
 	renderDetailSection,
 	renderTextField,
 } from "./fieldInputs";
+import { renderItemActions } from "./itemActions";
 import { extractPalette, renderPalette } from "./palette";
 
 export interface DetailSidebarContext {
@@ -39,7 +40,7 @@ export interface DetailSidebarContext {
  * in-flight palette extraction).
  */
 export class DetailSidebar {
-	private sourceActionButtons: SourceActionButtons | null = null;
+	private actionsEl: HTMLElement | null = null;
 	private tagSuggest: AreaTagSuggest | null = null;
 	// Bumped on every (re)render so a slow palette extraction from a previous
 	// item can't paint over the current one.
@@ -68,33 +69,55 @@ export class DetailSidebar {
 		this.resetItemState();
 	}
 
+	// Imported images are named after a UUID, so the filename was pure noise in
+	// the panel's most prominent slot. Dimensions, weight and date actually tell
+	// you something; the full path stays available as a tooltip.
 	private renderSpecimen(scroll: HTMLElement, item: AreaItem): void {
 		const specimen = scroll.createDiv("area-detail-specimen");
+		specimen.setAttribute("title", item.vaultPath);
 		specimen.createDiv({
 			cls: "area-detail-format",
 			text:
 				getFileExtension(getFileName(item.vaultPath))?.toUpperCase() ?? "IMG",
 		});
+
 		const text = specimen.createDiv("area-detail-specimen-text");
-		text.createDiv({
+		const dimensionsEl = text.createDiv({
 			cls: "area-detail-file-name",
-			text: getFileName(item.vaultPath),
+			text: "—",
 		});
-		const path = text.createDiv({
-			cls: "area-detail-file-path",
-			text: getShortPath(item.vaultPath),
+		const detailEl = text.createDiv({ cls: "area-detail-file-path" });
+
+		const added = formatAddedAt(item.addedAt);
+		detailEl.setText(added ? `Added ${added}` : "");
+
+		const token = this.renderToken;
+		void readImageMeta(this.ctx.app, item.vaultPath).then((meta) => {
+			if (token !== this.renderToken || !meta) return;
+			dimensionsEl.setText(formatDimensions(meta));
+			const weight = formatBytes(meta.size);
+			detailEl.setText(added ? `${weight} · Added ${added}` : weight);
 		});
-		path.setAttribute("title", item.vaultPath);
 	}
 
 	private renderPaletteRow(scroll: HTMLElement, item: AreaItem): void {
-		const host = scroll.createDiv(
+		// Wrapped in a titled section like every other block, so the row of circles
+		// is labelled rather than floating unexplained above the fields.
+		const section = renderDetailSection(scroll, "Palette", "palette");
+		section.addClass("area-detail-palette-section");
+		section.addClass("area-detail-palette-section--empty");
+		const host = section.createDiv(
 			"area-detail-palette area-detail-palette--empty",
 		);
+
 		const token = this.renderToken;
 		void extractPalette(this.ctx.app, item.vaultPath).then((colors) => {
 			if (token !== this.renderToken) return;
 			renderPalette(host, colors);
+			section.toggleClass(
+				"area-detail-palette-section--empty",
+				colors.length === 0,
+			);
 		});
 	}
 
@@ -171,11 +194,8 @@ export class DetailSidebar {
 	}
 
 	private renderActions(container: HTMLElement, item: AreaItem): void {
-		const actions = container.createDiv("area-detail-actions");
-		renderAttachmentActions(actions, this.ctx.app, item, () => {
-			// No-op: opening an attachment shouldn't tear down the detail tab.
-		});
-		this.sourceActionButtons = renderSourceActions(actions, item);
+		this.actionsEl = container.createDiv("area-detail-actions");
+		renderItemActions(this.actionsEl, this.ctx.app, item);
 	}
 
 	// Resolve the edited item fresh (by id, via the live area) so a concurrent
@@ -187,10 +207,12 @@ export class DetailSidebar {
 		this.ctx.onDataChanged();
 	}
 
+	// Which action leads the footer depends on whether there's a usable source
+	// URL, so typing one in reshuffles the bar rather than just relabelling it.
 	private syncSourceActionState(): void {
 		const item = this.ctx.getCurrentItem();
-		if (this.sourceActionButtons && item) {
-			syncSourceButtons(item, this.sourceActionButtons);
+		if (this.actionsEl && item) {
+			renderItemActions(this.actionsEl, this.ctx.app, item);
 		}
 	}
 
@@ -198,7 +220,7 @@ export class DetailSidebar {
 		this.renderToken++;
 		this.tagSuggest?.close();
 		this.tagSuggest = null;
-		this.sourceActionButtons = null;
+		this.actionsEl = null;
 	}
 }
 

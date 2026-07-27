@@ -23,12 +23,22 @@
 	flex: 0 0 auto;
 	display: flex;
 	align-items: center;
-	justify-content: flex-end;
+	justify-content: space-between;
 	gap: 8px;
 	height: 48px;
 	padding: 0 12px;
 	border-bottom: 1px solid var(--background-modifier-border);
 	background: var(--background-primary);
+}
+
+.area-detail-view-title {
+	min-width: 0;
+	overflow: hidden;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .area-detail-view-actions {
@@ -76,16 +86,6 @@ button.area-detail-icon-button .svg-icon {
 	height: 17px;
 }
 
-button.area-detail-toolbar-danger:hover {
-	background: var(--background-modifier-error-hover);
-	color: var(--text-error);
-}
-
-button.area-detail-toolbar-danger.is-confirming {
-	background: var(--background-modifier-error);
-	color: var(--text-on-accent);
-}
-
 /* --- Image stage --- */
 
 .area-detail-view-body {
@@ -122,6 +122,55 @@ button.area-detail-toolbar-danger.is-confirming {
 	box-shadow:
 		0 2px 6px rgba(0, 0, 0, 0.28),
 		0 18px 48px rgba(0, 0, 0, 0.42);
+}
+
+/* Overlaid on the stage rather than placed in the flow: the image is centred in
+   whatever space it gets, so an in-flow chevron would shift it off-centre. */
+button.area-detail-stage-nav {
+	position: absolute;
+	top: 50%;
+	width: 36px;
+	height: 36px;
+	transform: translateY(-50%);
+	border-radius: 50%;
+	background: var(--background-secondary-alt);
+	color: var(--text-muted);
+	opacity: 0;
+	backdrop-filter: blur(6px);
+	transition:
+		opacity 120ms ease,
+		background-color 120ms ease,
+		color 120ms ease;
+}
+
+/* Repeats the resting opacity at :disabled specificity, otherwise the shared
+   .area-detail-icon-button:disabled rule leaves the chevron faintly visible. */
+button.area-detail-stage-nav:disabled {
+	opacity: 0;
+}
+
+.area-detail-stage-nav--prev {
+	left: 12px;
+}
+
+.area-detail-stage-nav--next {
+	right: 12px;
+}
+
+.area-detail-stage:hover button.area-detail-stage-nav,
+button.area-detail-stage-nav:focus-visible {
+	opacity: 1;
+}
+
+button.area-detail-stage-nav:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* Held at the hover opacity so the bound of the strip stays visible instead of
+   the button vanishing and reading as "no more images that way". */
+.area-detail-stage:hover button.area-detail-stage-nav:disabled {
+	opacity: 0.3;
 }
 
 .area-detail-view-hint {
@@ -234,6 +283,12 @@ button.area-detail-toolbar-danger.is-confirming {
 	display: none;
 }
 
+/* Extraction is async; the titled section stays out of the layout until it has
+   swatches, so the panel doesn't open with a headed but empty block. */
+.area-detail-palette-section--empty {
+	display: none;
+}
+
 .area-detail-swatch {
 	width: 24px;
 	height: 24px;
@@ -312,10 +367,11 @@ button.area-detail-toolbar-danger.is-confirming {
 
 /* --- Utility actions footer --- */
 
+/* Two buttons now instead of five wrapped over two rows: one primary that fills
+   the bar and a fixed-width overflow trigger beside it. */
 .area-detail-actions {
 	flex: 0 0 auto;
 	display: flex;
-	flex-wrap: wrap;
 	align-items: center;
 	gap: 6px;
 	padding: 12px 20px;
@@ -326,13 +382,14 @@ button.area-detail-toolbar-danger.is-confirming {
 .area-detail-actions button {
 	display: inline-flex;
 	align-items: center;
+	justify-content: center;
 	gap: 6px;
-	height: 28px;
-	padding: 0 10px;
+	height: 30px;
+	padding: 0 12px;
 	border-radius: var(--radius-s);
-	background: transparent;
+	background: var(--interactive-normal);
 	box-shadow: none;
-	color: var(--text-muted);
+	color: var(--text-normal);
 	font-size: var(--font-ui-smaller);
 	white-space: nowrap;
 	cursor: pointer;
@@ -342,13 +399,16 @@ button.area-detail-toolbar-danger.is-confirming {
 }
 
 .area-detail-actions button:hover {
-	background: var(--background-modifier-hover);
-	color: var(--text-normal);
+	background: var(--interactive-hover);
 }
 
 .area-detail-actions button:disabled {
-	opacity: 0.4;
+	opacity: 0.5;
 	cursor: default;
+}
+
+.area-detail-actions button:disabled:hover {
+	background: var(--interactive-normal);
 }
 
 .area-detail-actions button:focus-visible {
@@ -356,6 +416,26 @@ button.area-detail-toolbar-danger.is-confirming {
 	box-shadow:
 		0 0 0 2px var(--background-primary),
 		0 0 0 4px var(--interactive-accent);
+}
+
+.area-detail-primary-action {
+	flex: 1;
+	min-width: 0;
+}
+
+.area-detail-primary-action:not(:disabled) {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.area-detail-primary-action:not(:disabled):hover {
+	background: var(--interactive-accent-hover);
+}
+
+.area-detail-overflow-action {
+	flex: 0 0 auto;
+	width: 30px;
+	padding: 0;
 }
 
 .area-detail-actions .svg-icon {
@@ -375,8 +455,14 @@ button.area-detail-toolbar-danger.is-confirming {
 @media (prefers-reduced-motion: reduce) {
 	.area-detail-swatch,
 	button.area-detail-icon-button,
+	button.area-detail-stage-nav,
 	.area-detail-actions button {
 		transition: none;
+	}
+
+	/* Hover-to-reveal is a motion affordance; keep the chevrons permanently on. */
+	button.area-detail-stage-nav {
+		opacity: 1;
 	}
 
 	.area-detail-swatch:hover {
