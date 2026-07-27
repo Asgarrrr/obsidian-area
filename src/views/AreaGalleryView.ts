@@ -112,6 +112,7 @@ export class AreaGalleryView extends TextFileView {
 		grid.empty();
 
 		const items = this.toolbar.getVisibleItems(this.areaData.items);
+		this.toolbar.updateCounts(items.length, this.areaData.items.length);
 
 		if (items.length === 0) {
 			// No cards to lay out — stop the observer watching this grid so it

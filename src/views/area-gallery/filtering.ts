@@ -1,4 +1,5 @@
 import type { AreaItem } from "../../types";
+import { groupTagsByFacet } from "./facets";
 
 export type SortOrder = "newest" | "oldest" | "title-az" | "title-za";
 
@@ -12,19 +13,13 @@ export function getFilteredItems(
 	items: AreaItem[],
 	{ activeTagFilters, searchQuery, sortOrder }: FilterOptions,
 ): AreaItem[] {
-	const filtered = items.filter((item) => {
-		// Tag filters intersect: each active filter narrows the set. Search below
-		// stays a union — searching casts wide, filtering narrows.
-		const matchesTags =
-			activeTagFilters.size === 0 ||
-			[...activeTagFilters].every((tag) => item.tags.includes(tag));
-		const matchesSearch =
-			searchQuery === "" ||
-			(item.title?.toLowerCase().includes(searchQuery) ?? false) ||
-			item.tags.some((tag) => tag.toLowerCase().includes(searchQuery)) ||
-			(item.sourceUrl?.toLowerCase().includes(searchQuery) ?? false);
-		return matchesTags && matchesSearch;
-	});
+	// Derived once for the whole pass rather than per item.
+	const tagGroups = groupTagsByFacet(activeTagFilters);
+
+	const filtered = items.filter(
+		(item) =>
+			matchesTagGroups(item, tagGroups) && matchesSearch(item, searchQuery),
+	);
 
 	return filtered.sort((a, b) => compareItems(a, b, sortOrder));
 }
@@ -52,6 +47,29 @@ export function pruneActiveTagFilters(
 	}
 
 	return didPrune;
+}
+
+// Values picked inside one facet are alternatives, facets combine: selecting
+// bordeaux + terre widens the palette, adding piece/veste on top narrows it.
+// Intersecting everything (the previous rule) made any two colours return zero.
+function matchesTagGroups(item: AreaItem, tagGroups: string[][]): boolean {
+	if (tagGroups.length === 0) return true;
+	const itemTags = new Set(item.tags);
+	return tagGroups.every((group) => group.some((tag) => itemTags.has(tag)));
+}
+
+// Search casts wide — any of title, tags, source URL or a custom field value.
+function matchesSearch(item: AreaItem, searchQuery: string): boolean {
+	if (searchQuery === "") return true;
+
+	return (
+		(item.title?.toLowerCase().includes(searchQuery) ?? false) ||
+		item.tags.some((tag) => tag.toLowerCase().includes(searchQuery)) ||
+		(item.sourceUrl?.toLowerCase().includes(searchQuery) ?? false) ||
+		Object.values(item.fields ?? {}).some((value) =>
+			String(value).toLowerCase().includes(searchQuery),
+		)
+	);
 }
 
 function compareItems(a: AreaItem, b: AreaItem, sortOrder: SortOrder): number {

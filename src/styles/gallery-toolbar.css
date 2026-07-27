@@ -1,7 +1,7 @@
 .area-toolbar {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 8px;
 	padding: 6px 12px;
 	border-bottom: 1px solid var(--background-modifier-border);
 	background: var(--background-primary);
@@ -11,9 +11,16 @@
 .area-toolbar-left {
 	display: flex;
 	align-items: center;
-	gap: 6px;
+	gap: 8px;
 	flex: 1;
 	min-width: 0;
+}
+
+.area-toolbar-right {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
 }
 
 .area-search-container {
@@ -27,7 +34,25 @@
 	height: var(--input-height);
 }
 
-.area-tags {
+.area-sort-select {
+	height: var(--input-height);
+	width: 170px;
+	flex-shrink: 0;
+}
+
+.area-toolbar-count {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	padding-right: 2px;
+}
+
+/* --- Facets --- */
+
+/* One button per tag namespace. Bounded by the toolbar rather than the tag
+   count, so a board with 40 tags has the same toolbar as one with 5. */
+.area-facets {
 	display: flex;
 	align-items: center;
 	gap: 5px;
@@ -37,31 +62,118 @@
 	scrollbar-width: none;
 }
 
-.area-tags::-webkit-scrollbar {
+.area-facets::-webkit-scrollbar {
 	display: none;
 }
 
-.area-tag-filter {
+.area-facet-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
 	height: var(--input-height);
 	white-space: nowrap;
 	flex: 0 0 auto;
 }
 
-.area-tag-filter:active {
-	transform: scale(0.97);
-}
-
-.area-tag-filter .tag {
-	pointer-events: none;
-}
-
-.area-tag-filter.mod-cta .tag {
-	background: transparent;
+.area-facet-button.is-active {
+	background: var(--interactive-accent);
 	color: var(--text-on-accent);
 }
 
-.area-sort-select {
+.area-facet-button:active {
+	transform: scale(0.97);
+}
+
+.area-facet-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 16px;
+	height: 16px;
+	padding: 0 4px;
+	border-radius: 999px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	line-height: 1;
+}
+
+.area-facet-badge--hidden {
+	display: none;
+}
+
+.area-facet-clear {
 	height: var(--input-height);
-	width: 170px;
-	flex-shrink: 0;
+	flex: 0 0 auto;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+}
+
+.area-facet-clear:hover {
+	color: var(--text-normal);
+}
+
+.area-facet-clear--hidden {
+	display: none;
+}
+
+/* --- Facet menu --- */
+
+.area-facet-menu {
+	position: fixed;
+	z-index: var(--layer-menu);
+	max-height: 60vh;
+	min-width: 180px;
+	max-width: 280px;
+	overflow-y: auto;
+	padding: 4px;
+}
+
+.area-facet-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+
+.area-facet-item:focus-visible {
+	outline: none;
+	box-shadow: inset 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+/* Fixed-width slot so labels line up whether or not the row is checked. */
+.area-facet-item-check {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 14px;
+	width: 14px;
+	color: var(--text-accent);
+}
+
+.area-facet-item-check .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.area-facet-item-label {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.area-facet-item.is-active .area-facet-item-label {
+	color: var(--text-normal);
+	font-weight: var(--font-medium);
+}
+
+.area-facet-item-count {
+	flex: 0 0 auto;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
 }

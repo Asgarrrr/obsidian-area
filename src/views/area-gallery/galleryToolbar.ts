@@ -2,6 +2,7 @@ import type AreaPlugin from "../../main";
 import type { AreaItem } from "../../types";
 import type { AreaGalleryView } from "../AreaGalleryView";
 import { SchemaEditorModal } from "../SchemaEditorModal";
+import { closeFacetMenu } from "./facetMenu";
 import {
 	type SortOrder,
 	getAllTags,
@@ -9,7 +10,7 @@ import {
 	getTagSignature,
 	pruneActiveTagFilters,
 } from "./filtering";
-import { renderAreaToolbar } from "./toolbar";
+import { type AreaToolbarHandle, renderAreaToolbar } from "./toolbar";
 
 const SEARCH_DEBOUNCE_MS = 120;
 
@@ -22,6 +23,7 @@ export class GalleryToolbarController {
 	private renderedTagSignature = "";
 	private searchRenderTimer: number | undefined;
 	private toolbarEl: HTMLElement | null = null;
+	private handle: AreaToolbarHandle | null = null;
 
 	constructor(
 		private view: AreaGalleryView,
@@ -60,7 +62,14 @@ export class GalleryToolbarController {
 		this.renderToolbar();
 	}
 
+	// Report how much of the board survived the filters. Pushed through a handle
+	// rather than a toolbar re-render so it can't tear down an open facet menu.
+	updateCounts(visible: number, total: number): void {
+		this.handle?.setCounts(visible, total);
+	}
+
 	dispose(): void {
+		closeFacetMenu();
 		if (this.searchRenderTimer !== undefined) {
 			window.clearTimeout(this.searchRenderTimer);
 			this.searchRenderTimer = undefined;
@@ -71,7 +80,7 @@ export class GalleryToolbarController {
 		const toolbar = this.toolbarEl;
 		if (!toolbar) return;
 
-		this.renderedTagSignature = renderAreaToolbar({
+		this.handle = renderAreaToolbar({
 			toolbar,
 			areaData: this.view.getAreaData(),
 			activeTagFilters: this.activeTagFilters,
@@ -97,7 +106,15 @@ export class GalleryToolbarController {
 				else this.activeTagFilters.add(tag);
 				this.view.rerenderGrid();
 			},
+			// Distinct from clearFilters(): the facet bar clears its own buttons in
+			// place, so re-rendering the toolbar here would destroy the open menu.
+			onClearTagFilters: () => {
+				this.activeTagFilters.clear();
+				this.view.rerenderGrid();
+			},
 		});
+
+		this.renderedTagSignature = this.handle.tagSignature;
 	}
 
 	private queueGridRender(): void {

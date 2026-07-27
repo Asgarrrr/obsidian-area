@@ -27,7 +27,7 @@
 	.area-card:active,
 	.area-card-source:active,
 	.area-empty-state__clear:active,
-	.area-tag-filter:active {
+	.area-facet-button:active {
 		transform: none;
 	}
 }
