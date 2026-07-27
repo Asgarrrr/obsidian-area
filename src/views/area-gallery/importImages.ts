@@ -12,6 +12,7 @@ import {
 	isSupportedVaultImageFile,
 	readAspectRatio,
 } from "./imageFileTypes";
+import { createThumbnail } from "./thumbnails";
 
 export interface ImportImageIssue {
 	name: string;
@@ -59,6 +60,11 @@ export async function importImageFiles(
 				existingVaultPaths,
 			);
 			const item = await createExternalImageItem(app, file, vaultPath);
+			item.thumbPath = await createThumbnail(
+				app,
+				item,
+				normalizedAttachmentsDir,
+			);
 			existingVaultPaths.add(item.vaultPath);
 			result.items.push(item);
 		} catch (error) {
@@ -73,12 +79,15 @@ export async function importImageFiles(
 	return result;
 }
 
-export function importVaultImageFiles(
+export async function importVaultImageFiles(
+	app: App,
+	attachmentsDir: string,
 	files: TFile[],
 	existingItems: AreaItem[],
-): ImportImageResult {
+): Promise<ImportImageResult> {
 	const existingVaultPaths = getExistingVaultPaths(existingItems);
 	const result = createImportImageResult();
+	const normalizedAttachmentsDir = normalizeVaultFolderPath(attachmentsDir);
 
 	for (const file of files) {
 		if (!isSupportedVaultImageFile(file)) {
@@ -94,15 +103,17 @@ export function importVaultImageFiles(
 			continue;
 		}
 
-		const id = crypto.randomUUID();
 		const item: AreaItem = {
-			id,
+			id: crypto.randomUUID(),
 			type: "image",
 			vaultPath: file.path,
 			tags: [],
 			addedAt: Date.now(),
 			title: file.basename,
 		};
+		// The image stays where it is in the vault; only its thumbnail is written
+		// into the area's attachments folder.
+		item.thumbPath = await createThumbnail(app, item, normalizedAttachmentsDir);
 
 		existingVaultPaths.add(item.vaultPath);
 		result.items.push(item);

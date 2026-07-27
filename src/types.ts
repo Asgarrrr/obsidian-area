@@ -16,6 +16,7 @@ export interface AreaItem {
 	id: string;
 	type: "image" | "video";
 	vaultPath: string;
+	thumbPath?: string; // downscaled copy generated at import; absent = render the original
 	sourceUrl?: string;
 	tags: string[];
 	addedAt: number;

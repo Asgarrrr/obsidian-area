@@ -2,6 +2,7 @@ import { App, ButtonComponent, Modal, Notice, TextComponent } from "obsidian";
 import type AreaPlugin from "../main";
 import { AreaGalleryView } from "../views/AreaGalleryView";
 import { FileSuggestModal } from "../views/fileSuggest";
+import { createThumbnail } from "../views/area-gallery/thumbnails";
 
 function getActiveAreaView(app: App): AreaGalleryView | null {
 	return app.workspace.getActiveViewOfType(AreaGalleryView);
@@ -76,6 +77,45 @@ class NewAreaModal extends Modal {
 	}
 }
 
+// Backfill for items imported before thumbnails existed, and for any whose
+// generation failed at import time. Skips items that already have one.
+async function generateMissingThumbnails(
+	plugin: AreaPlugin,
+	view: AreaGalleryView,
+): Promise<void> {
+	const pending = view.getItems().filter((item) => !item.thumbPath);
+	if (pending.length === 0) {
+		new Notice("Area: all thumbnails are up to date.");
+		return;
+	}
+
+	const progress = new Notice(
+		`Area: generating ${pending.length} thumbnails…`,
+		0,
+	);
+	let created = 0;
+	for (const item of pending) {
+		const thumbPath = await createThumbnail(
+			plugin.app,
+			item,
+			plugin.settings.attachmentsDir,
+		);
+		if (thumbPath) {
+			item.thumbPath = thumbPath;
+			created++;
+		}
+	}
+	progress.hide();
+
+	if (created > 0) {
+		view.requestSave();
+		view.rerenderGrid();
+	}
+	// Images already under the thumbnail size are skipped, so created can be
+	// lower than pending without anything having failed.
+	new Notice(`Area: ${created} of ${pending.length} thumbnails generated.`);
+}
+
 function openAreaCommand(plugin: AreaPlugin): void {
 	const areas = plugin.app.vault
 		.getFiles()
@@ -119,6 +159,17 @@ export function registerCommands(plugin: AreaPlugin): void {
 			const view = getActiveAreaView(plugin.app);
 			if (!view) return false;
 			if (!checking) view.openVaultImagePicker();
+			return true;
+		},
+	});
+
+	plugin.addCommand({
+		id: "area:generate-thumbnails",
+		name: "Generate missing thumbnails",
+		checkCallback: (checking) => {
+			const view = getActiveAreaView(plugin.app);
+			if (!view?.canModify()) return false;
+			if (!checking) void generateMissingThumbnails(plugin, view);
 			return true;
 		},
 	});

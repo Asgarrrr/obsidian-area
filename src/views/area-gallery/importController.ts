@@ -66,7 +66,7 @@ export class AreaImportController {
 
 	openVaultImagePicker(): void {
 		openVaultImageSuggest(this.plugin.app, (file) => {
-			this.importVaultFiles([file]);
+			void this.importVaultFiles([file]);
 		});
 	}
 
@@ -81,9 +81,14 @@ export class AreaImportController {
 		this.applyImportResult(result);
 	}
 
-	importVaultFiles(files: TFile[]): void {
+	async importVaultFiles(files: TFile[]): Promise<void> {
 		if (this.importsBlocked()) return;
-		const result = importVaultImageFiles(files, this.view.getItems());
+		const result = await importVaultImageFiles(
+			this.plugin.app,
+			this.plugin.settings.attachmentsDir,
+			files,
+			this.view.getItems(),
+		);
 		this.applyImportResult(result);
 	}
 
