@@ -18,10 +18,11 @@ bun run lint         # check with Biome
 bun run lint:fix     # auto-fix linting issues
 bun run format       # format source files
 bun run type-check   # TypeScript type check only
+bun test             # unit tests
 bun run dev:install <vault-path>  # symlink plugin into a vault for development
 ```
 
-No test runner is configured. Verification = build + manual test in Obsidian.
+`bun test` runs the suite in `tests/`, which covers the pure modules only — filtering, facets, schema and file helpers. Anything touching the DOM, canvas or the Obsidian API is verified by build plus a manual pass in Obsidian, scriptable through `obsidian eval`.
 
 ## Hot Reload
 
