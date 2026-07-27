@@ -13,9 +13,11 @@ export function getFilteredItems(
 	{ activeTagFilters, searchQuery, sortOrder }: FilterOptions,
 ): AreaItem[] {
 	const filtered = items.filter((item) => {
+		// Tag filters intersect: each active filter narrows the set. Search below
+		// stays a union — searching casts wide, filtering narrows.
 		const matchesTags =
 			activeTagFilters.size === 0 ||
-			item.tags.some((tag) => activeTagFilters.has(tag));
+			[...activeTagFilters].every((tag) => item.tags.includes(tag));
 		const matchesSearch =
 			searchQuery === "" ||
 			(item.title?.toLowerCase().includes(searchQuery) ?? false) ||
