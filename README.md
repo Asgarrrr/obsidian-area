@@ -25,6 +25,23 @@ Area files are plain JSON stored in the vault:
 
 Imported images are copied into the configured vault-relative attachments folder, `.attachments/area` by default. The `.area` file stores vault paths and metadata; it does not require a remote service.
 
+## Tagging convention
+
+Tag filters intersect: each active filter narrows the result set. That makes it worth tagging along several independent axes, since a reference is rarely one thing. A screenshot of a navigation bar is also a visual style, a technique, and a source.
+
+Area does not enforce a vocabulary, but collections stay searchable much longer with a prefix per axis:
+
+| Prefix | Axis | Examples |
+| --- | --- | --- |
+| `pattern/` | Which interface element it is | `pattern/navbar`, `pattern/pricing-table` |
+| `style/` | Visual register | `style/glass`, `style/brutalist` |
+| `tech/` | How the effect is built | `tech/scroll-driven`, `tech/blur` |
+| `from/` | Where it came from | `from/linear`, `from/dribbble` |
+
+Tags are sorted alphabetically in the toolbar, so prefixed tags group themselves by axis with no extra configuration. Keeping the set of values small and deliberate matters more than the prefix names: `navbar`, `nav-bar`, and `navigation` in the same collection will quietly return nothing when intersected.
+
+`from/` is intentionally redundant with an item's source URL. The URL is the exact page to revisit; the tag is the coarse, filterable origin.
+
 ## Development
 
 Install dependencies:
