@@ -80,6 +80,15 @@
 	color: var(--text-on-accent);
 }
 
+/* The accent background outranks Obsidian's own button:hover, so an active
+   facet needs its hover restated. Gated like every hover rule in app.css, to
+   keep a tap from leaving the button stuck in the hover shade on touch. */
+@media (hover: hover) {
+	.area-facet-button.is-active:hover {
+		background: var(--interactive-accent-hover);
+	}
+}
+
 .area-facet-button:active {
 	transform: scale(0.97);
 }
@@ -138,7 +147,18 @@
 	cursor: pointer;
 }
 
+/* Obsidian paints .menu-item hover from a .selected class its own Menu adds in
+   JS; this popover is hand-rolled, so the highlight has to be declared here. */
+@media (hover: hover) {
+	.area-facet-item:hover {
+		background-color: var(--background-modifier-hover);
+		color: var(--text-normal);
+	}
+}
+
 .area-facet-item:focus-visible {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
 	outline: none;
 	box-shadow: inset 0 0 0 2px var(--background-modifier-border-focus);
 }
