@@ -2,7 +2,7 @@
 
 ## Product direction
 
-Area should become a local visual research workspace for Obsidian, not only an image gallery.
+Area should become a local visual research workspace for Obsidian.
 
 The core workflow to optimize is:
 
@@ -25,7 +25,7 @@ Make adding material to an area fast and reliable.
 - Add a command to add the current file or image to the active area.
 - Preserve useful source metadata when available, without guessing or calling external services.
 
-Why this matters: capture is the first impression. If adding references is effortless, Area becomes part of daily Obsidian use.
+Capture is the first impression. If adding references is effortless, Area becomes part of daily Obsidian use.
 
 ## Priority 2 — Views and organization
 
@@ -35,11 +35,12 @@ Move beyond simple tag filtering toward saved working views.
 - Filters for custom fields, not only tags.
 - Sort by custom field, title, source URL, and date.
 - Inbox view for items without title, tags, or fields.
-- Bulk selection.
-- Bulk edit tags, source URL, custom fields, and deletion from an area.
+- Bulk selection. — **Shipped.**
+- Bulk edit tags, source URL, custom fields, and deletion from an area. —
+  **Shipped** (spec: `superpowers/specs/2026-09-09-bulk-edit-design.md`).
 - Quick commands such as "Show untagged", "Show missing source", and "Show recently added".
 
-Why this matters: users should be able to maintain large reference collections without turning every organization task into item-by-item editing.
+Maintaining a large collection must not turn every organization task into item-by-item editing.
 
 ## Priority 3 — Item detail as an Obsidian object
 
@@ -57,7 +58,7 @@ The item detail modal should make references useful inside the rest of the vault
 - Show backlinks or notes that reference the item when possible.
 - Add keyboard shortcuts for common detail actions.
 
-Why this matters: Area should not be a dead-end gallery. References should flow into notes, projects, and writing.
+References should flow into notes, projects, and writing.
 
 ## Priority 4 — Visual and interaction polish
 
@@ -80,7 +81,7 @@ Make the gallery feel like a finished product.
   - `Esc` to close or clear.
   - Shortcuts for tag/source/edit actions.
 
-Why this matters: visual reference tools live or die by repeated use. The interface must stay fast and pleasant under real collections.
+The interface must stay fast and pleasant under real collections.
 
 ## Priority 5 — Data integrity
 
@@ -95,7 +96,7 @@ Make `.area` files trustworthy.
 - Avoid destructive cleanup unless the user explicitly chooses it.
 - Add tests around schema IDs, schema deletion, item field persistence, imports, and serialization.
 
-Why this matters: once users build collections, data safety becomes more important than new features.
+Once a collection exists, data safety outranks new features.
 
 ## Priority 6 — Release readiness
 
@@ -113,12 +114,12 @@ Prepare the plugin for a public-quality Obsidian release.
 - Keep generated artifacts ignored in git unless release packaging requires otherwise.
 - Add a repeatable release checklist.
 
-Why this matters: a polished plugin needs trust before users install it into a real vault.
+Users install a plugin into a real vault only if they trust it.
 
 ## Recommended build order
 
 1. Capture improvements and duplicate handling.
-2. Bulk selection and bulk edit.
+2. Bulk selection and bulk edit. — **Done.**
 3. Saved views and custom-field filters.
 4. Rich item detail with Markdown notes and copy/link actions.
 5. Data validation, repair tools, and tests.
@@ -133,5 +134,3 @@ The feature set most likely to make Area feel like a serious tool:
 - Stable Markdown links to area items.
 - Clipboard paste import.
 - Data validation and repair.
-
-This combination turns Area from a gallery into a practical reference-management system inside Obsidian.

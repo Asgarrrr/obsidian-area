@@ -1,4 +1,11 @@
 import { AbstractInputSuggest, getAllTags, setIcon, type App } from "obsidian";
+import {
+	canonicalTag,
+	mergeTags,
+	normalizeAreaTagInput,
+	parseTagInput,
+	sameTags,
+} from "../tagStrings";
 
 const MAX_TAG_SUGGESTIONS = 25;
 
@@ -174,47 +181,4 @@ export function renderAreaTagEditor({
 			if (!sameTags(tags, nextTags)) onChange(nextTags);
 		},
 	);
-}
-
-function normalizeAreaTagInput(value: string): string | null {
-	const normalized = value
-		.trim()
-		.replace(/^#+/, "")
-		.replace(/,+$/, "")
-		.replace(/\s+/g, "-");
-
-	return normalized ? normalized : null;
-}
-
-function parseTagInput(value: string): string[] {
-	return value
-		.split(",")
-		.map((part) => normalizeAreaTagInput(part))
-		.filter((tag): tag is string => Boolean(tag));
-}
-
-function mergeTags(current: string[], additions: string[]): string[] {
-	const next = [...current];
-	const seen = new Set(current.map(canonicalTag));
-
-	for (const addition of additions) {
-		const tag = normalizeAreaTagInput(addition);
-		if (!tag) continue;
-
-		const key = canonicalTag(tag);
-		if (seen.has(key)) continue;
-
-		next.push(tag);
-		seen.add(key);
-	}
-
-	return next;
-}
-
-function sameTags(a: string[], b: string[]): boolean {
-	return a.length === b.length && a.every((tag, index) => tag === b[index]);
-}
-
-function canonicalTag(tag: string): string {
-	return tag.trim().replace(/^#+/, "").toLowerCase();
 }

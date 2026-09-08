@@ -2,8 +2,11 @@ import { Notice } from "obsidian";
 import type AreaPlugin from "../../main";
 import type { AreaItem } from "../../types";
 import type { AreaGalleryView } from "../AreaGalleryView";
+import { BulkEditModal } from "../BulkEditModal";
 import { ConfirmModal } from "../ConfirmModal";
+import { getVaultTagSuggestions } from "../TagInput";
 import { type BulkBarHandle, renderBulkBar } from "./bulkBar";
+import { applyBulkPatch, type BulkPatch, summarizeSelection } from "./bulkEdit";
 import {
 	countHiddenSelected,
 	partitionSelected,
@@ -19,6 +22,9 @@ export class SelectionController {
 	// The list the grid last rendered, kept so the bar can report how many
 	// selected items the filters are hiding without re-running them.
 	private visibleItems: AreaItem[] = [];
+	// Set when a save() rejected after the patch already mutated memory: the next
+	// apply must re-save even if the patch itself is a no-op by then.
+	private saveFailed = false;
 
 	constructor(
 		private view: AreaGalleryView,
@@ -30,6 +36,7 @@ export class SelectionController {
 		this.handle = renderBulkBar({
 			container,
 			onClear: () => this.clear(),
+			onEdit: () => this.openBulkEdit(),
 			onRemove: () => this.confirmRemove(),
 		});
 	}
@@ -77,6 +84,81 @@ export class SelectionController {
 			this.selected.size,
 			countHiddenSelected(this.visibleItems, this.selected),
 		);
+	}
+
+	private openBulkEdit(): void {
+		if (this.selected.size === 0) return;
+
+		const areaData = this.view.getAreaData();
+		const selectedItems = areaData.items.filter((item) =>
+			this.selected.has(item.id),
+		);
+		if (selectedItems.length === 0) return;
+
+		const schema = areaData.schema ?? [];
+		new BulkEditModal(this.plugin.app, {
+			summary: summarizeSelection(
+				selectedItems,
+				schema.map((def) => def.id),
+			),
+			schema,
+			hiddenCount: countHiddenSelected(this.visibleItems, this.selected),
+			getTagSuggestions: () => {
+				const tags = new Set(getVaultTagSuggestions(this.plugin.app));
+				for (const item of this.view.getAreaData().items) {
+					for (const tag of item.tags) tags.add(tag);
+				}
+				return [...tags].sort((a, b) => a.localeCompare(b));
+			},
+			onApply: (patch) => this.applyPatch(patch),
+			onClosed: () => {
+				// The user walked away from the retry: the edit lives in memory
+				// but not on disk. Say so — silence here is how data gets lost.
+				if (this.saveFailed) {
+					new Notice(
+						"The last bulk edit is applied here but not saved to disk yet. It will be written with the next successful save.",
+					);
+				}
+			},
+		}).open();
+	}
+
+	// The commit path the spec pins down: fresh areaData at apply time (an
+	// external reload replaces the object graph), canModify guard, direct
+	// save() — requestSave's 2s debounce buys nothing after one atomic commit
+	// and opens last-writer-wins and background-kill windows.
+	private async applyPatch(patch: BulkPatch): Promise<void> {
+		if (!this.view.canModify()) {
+			// Throwing keeps the modal open with the draft intact (its catch path).
+			throw new Error("This area file is not editable — nothing was changed.");
+		}
+
+		const areaData = this.view.getAreaData();
+		// On a retry after a failed save, the patch already sits in memory and
+		// applyBulkPatch reports 0 — the count must not read as "nothing done".
+		const retrying = this.saveFailed;
+		const changed = applyBulkPatch(areaData.items, this.selected, patch);
+
+		if (changed > 0 || retrying) {
+			try {
+				await this.view.save();
+				this.saveFailed = false;
+			} catch (err) {
+				this.saveFailed = true;
+				// Memory did change; the grid must not keep painting stale tags,
+				// and Obsidian's own debounced save machinery gets a chance to
+				// persist what the direct save could not (it also flushes on
+				// view close).
+				this.view.notifyItemsChanged();
+				this.view.requestSave();
+				throw err;
+			}
+			this.view.notifyItemsChanged();
+		}
+		if (changed === 0 && retrying) new Notice("Changes saved.");
+		else {
+			new Notice(changed === 1 ? "Updated 1 item" : `Updated ${changed} items`);
+		}
 	}
 
 	private confirmRemove(): void {

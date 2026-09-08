@@ -2,7 +2,7 @@
 
 ## Product direction
 
-Area should become a local visual research workspace for Obsidian. The plugin already creates `.area` files, renders image cards, supports tags, source URLs, custom fields, and item detail editing. The next wave should make those pieces feel like a daily reference-management workflow instead of a static gallery.
+Area should become a local visual research workspace for Obsidian. The plugin already creates `.area` files, renders image cards, supports tags, source URLs, custom fields, and item detail editing. The next wave should turn those pieces into a daily reference-management workflow.
 
 The product should stay focused on local visual material:
 

@@ -1,0 +1,143 @@
+/* src/styles/bulk-edit.css — bulk edit modal */
+
+.area-bulk-edit-modal .area-bulk-edit-scope {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin-bottom: var(--size-4-3);
+}
+
+.area-bulk-edit-section {
+	margin-bottom: var(--size-4-4);
+}
+
+.area-bulk-edit-section-title {
+	font-weight: var(--font-semibold);
+	margin-bottom: var(--size-4-2);
+}
+
+/* The tag editor surface. It carries .multi-select-container like the single
+   item editor, but not .area-tag-editor, so none of the box rules in
+   token-editors.css reach it — they are restated here rather than widened
+   there, so the two editors can drift apart without breaking each other. */
+.area-bulk-tag-editor {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 5px;
+	width: 100%;
+	min-height: 32px;
+	padding: 4px 8px;
+	border: var(--input-border-width) solid var(--background-modifier-border);
+	border-radius: var(--input-radius);
+	background: var(--background-modifier-form-field);
+	cursor: text;
+}
+
+.area-bulk-tag-editor:focus-within {
+	background: var(--background-modifier-form-field-highlighted);
+	box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+/* Scoped for the same reason as its .area-tag-editor twin: height and padding
+   must beat Obsidian's input[type=text] so the box stays 32px tall. */
+.area-bulk-tag-editor .area-tag-editor-input {
+	width: 100%;
+	height: 22px;
+	min-height: 22px;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-normal);
+	font: inherit;
+	line-height: 22px;
+}
+
+/* Pill state variants — the cycle must be readable at a glance. */
+.area-bulk-pill {
+	max-width: 100%;
+	margin: 0;
+	min-height: 22px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.area-bulk-pill--partial {
+	opacity: 0.55;
+}
+
+.area-bulk-pill--removed {
+	text-decoration: line-through;
+	color: var(--text-error);
+	opacity: 0.8;
+}
+
+.area-bulk-pill--new {
+	border: 1px dashed var(--interactive-accent);
+	/* Its body does not cycle; only the × does anything. */
+	cursor: default;
+}
+
+.area-bulk-pill-count {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	margin-left: var(--size-2-1);
+}
+
+/* Field rows. The head sits on its own line, then the input and its clear
+   icon share the next one — both are direct children of the row, so the wrap
+   is what keeps them side by side without a container element in the TS. */
+.area-bulk-field {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-2-1) var(--size-4-1);
+	margin-bottom: var(--size-4-2);
+}
+
+.area-bulk-field-head {
+	flex: 1 0 100%;
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
+.area-bulk-field > input,
+.area-bulk-field > select {
+	flex: 1 1 0;
+	min-width: 0;
+}
+
+.area-bulk-field-clear {
+	flex: 0 0 auto;
+}
+
+.area-bulk-field-chip {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.area-bulk-field-chip--clear {
+	color: var(--text-warning);
+}
+
+.area-bulk-field-chip--error {
+	color: var(--text-error);
+}
+
+/* Pushed to the trailing edge so the row reads label → state → escape hatch. */
+.area-bulk-field-revert {
+	margin-left: auto;
+}
+
+.area-bulk-field-revert--hidden {
+	display: none;
+}
+
+.area-bulk-edit-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-4);
+}

@@ -66,6 +66,7 @@ const STYLE_SOURCES = [
 	"src/styles/gallery-cards.css",
 	"src/styles/detail-view.css",
 	"src/styles/token-editors.css",
+	"src/styles/bulk-edit.css",
 	"src/styles/schema-modal.css",
 	"src/styles/utilities.css",
 	"src/styles/responsive.css",

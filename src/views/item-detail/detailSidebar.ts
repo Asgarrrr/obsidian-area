@@ -1,5 +1,6 @@
 import type { App } from "obsidian";
-import type { AreaFile, AreaItem, FieldValue } from "../../types";
+import { setCustomFieldValue } from "../../fieldValues";
+import type { AreaFile, AreaItem } from "../../types";
 import {
 	type AreaTagSuggest,
 	getVaultTagSuggestions,
@@ -222,21 +223,4 @@ export class DetailSidebar {
 		this.tagSuggest = null;
 		this.actionsEl = null;
 	}
-}
-
-function setCustomFieldValue(
-	item: AreaItem,
-	fieldId: string,
-	value: FieldValue | undefined,
-): void {
-	if (value === undefined || value === "") {
-		if (item.fields) {
-			delete item.fields[fieldId];
-			if (Object.keys(item.fields).length === 0) delete item.fields;
-		}
-		return;
-	}
-
-	if (!item.fields) item.fields = {};
-	item.fields[fieldId] = value;
 }

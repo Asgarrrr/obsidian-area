@@ -2,7 +2,7 @@
 
 > Handoff doc. Written 2026-07-01 after a UI audit + masonry rework + an xhigh
 > `/code-review` pass. Purpose: let a fresh session continue without re-deriving.
-> **STATUS (updated 2026-07-01, session 2): all findings resolved.** Slices A–E
+> STATUS (updated 2026-07-01, session 2): all findings resolved. Slices A–E
 > done; #1–#8, #10, #11, #12, #13 fixed and verified (type-check + lint + build
 > green, two independent review passes). Per-item status inline below.
 
@@ -84,7 +84,7 @@ bun run dev            # watch + rebuild (was running in background this session
 
 Grouped into fix slices. `file:line` + concrete fix. Do slices independently.
 
-> **✅ ALL RESOLVED (session 2).** Summary of how each was fixed:
+> ALL RESOLVED (session 2). Summary of how each was fixed:
 > - **Slice A+B** — masonry orchestration extracted to a `MasonryController` class
 >   in `masonry.ts`; two-pass read-then-write layout (#1); `skipNextObserverFire`
 >   kills the double initial layout (#2); empty-render branch calls

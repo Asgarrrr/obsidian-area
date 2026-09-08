@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-Obsidian plugin introducing a new view type — **Area** — designed to store, visualize, and retrieve design inspiration and other categorized reference material. The core idea: structured, card-based or gallery-style views over vault content, distinct from standard markdown notes.
+Obsidian plugin introducing a new view type — **Area** — designed to store, visualize, and retrieve design inspiration and other categorized reference material. An area is a structured, card-based gallery over vault content, distinct from standard markdown notes.
 
-Currently the codebase is a scaffolded sample plugin. The real feature work starts here.
+The gallery, item detail view, schema editor, import pipeline, tag facets, and bulk selection/editing are implemented. `docs/09-product-roadmap.md` tracks what is planned next.
 
 ## Commands
 
@@ -69,6 +69,10 @@ Build output: `main.js` + `styles.css` at the repo root (required by Obsidian).
 **Thumbnails** live at `<attachmentsDir>/.thumbs/<item.id>.webp`, downscaled to 640px on the long edge (`src/views/area-gallery/thumbnails.ts`). Generated on import, backfilled by the `area:generate-thumbnails` command, deleted with the item. Everything is best-effort: any failure returns `undefined` and cards fall back to the original, with a self-clearing `img.onerror` covering a thumbnail deleted behind the plugin's back. GIF and SVG are skipped.
 
 **Facet filtering** groups tags by the namespace before the first `/` (`palette/bordeaux` → facet "Palette"). Selection stays a flat `Set<string>`; the semantics live in the matcher — OR within a facet, AND across facets (`src/views/area-gallery/filtering.ts`). Obsidian's `Menu` closes on every click and can't do multi-select, hence the hand-rolled popover in `facetMenu.ts`, which is a module-level singleton and must be closed via `closeFacetMenu()` whenever its anchor is destroyed.
+
+**Pure helper modules.** Tag string helpers (`canonicalTag`, `mergeTags`, normalization) live in `src/tagStrings.ts`; the `item.fields` write invariant is `setCustomFieldValue` in `src/fieldValues.ts`. Both are `bun test`-safe — never re-declare them inside DOM modules, and never import them from `TagInput.ts`/`detailSidebar.ts`, which pull Obsidian runtime symbols.
+
+**Bulk edit semantics** are pure functions in `src/views/area-gallery/bulkEdit.ts` (summarize/cycle/patch/apply); the modal and its components (`BulkEditModal`, `BulkTagEditor`, `BulkFieldRows`) are views over them. Apply commits via fresh `getAreaData()` + `canModify()` + direct `save()` — keep it that way (spec: `docs/superpowers/specs/2026-09-09-bulk-edit-design.md`).
 
 ## Obsidian API Surface (relevant for this plugin)
 

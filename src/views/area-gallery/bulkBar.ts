@@ -7,6 +7,7 @@ import { ButtonComponent } from "obsidian";
 interface BulkBarOptions {
 	container: HTMLElement;
 	onClear: () => void;
+	onEdit: () => void;
 	onRemove: () => void;
 }
 
@@ -18,6 +19,7 @@ export interface BulkBarHandle {
 export function renderBulkBar({
 	container,
 	onClear,
+	onEdit,
 	onRemove,
 }: BulkBarOptions): BulkBarHandle {
 	container.empty();
@@ -34,6 +36,10 @@ export function renderBulkBar({
 	new ButtonComponent(actions)
 		.setButtonText("Clear selection")
 		.onClick(onClear);
+	new ButtonComponent(actions)
+		.setButtonText("Edit selection")
+		.setCta()
+		.onClick(onEdit);
 	new ButtonComponent(actions)
 		.setButtonText("Remove from area")
 		.setWarning()

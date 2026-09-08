@@ -30,7 +30,7 @@ Copy actions should include:
 - Copy vault path.
 - Copy source URL.
 
-Previous and next controls should move through the current filtered and sorted gallery order, not raw insertion order. This lets users review a filtered collection without closing the modal.
+Previous and next controls should move through the current filtered and sorted gallery order, not raw insertion order, so a filtered collection can be reviewed without closing the modal.
 
 For v1 planning, item links should use:
 

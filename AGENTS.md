@@ -8,7 +8,7 @@
 
 ## Environment & tooling
 
-- **Runtime: Bun** (recommended for this sample - provides better performance than Node.js).
+- **Runtime: Bun** (used by this project for install, build, and test).
 - **Package manager: bun** (used in this sample - `package.json` defines bun scripts and dependencies).
 - **Bundler: Bun** (this sample uses `bun.build.ts` for bundling). Alternative bundlers like esbuild, Rollup or webpack are acceptable for other projects if they bundle all external dependencies into `main.js`.
 - **Linter/Formatter: Biome** (replaces ESLint + Prettier with a single, faster tool).
