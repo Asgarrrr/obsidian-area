@@ -8,6 +8,7 @@ import { renderEmptyState } from "./area-gallery/emptyState";
 import { GalleryToolbarController } from "./area-gallery/galleryToolbar";
 import { AreaImportController } from "./area-gallery/importController";
 import { MasonryController } from "./area-gallery/masonry";
+import { SelectionController } from "./area-gallery/selectionController";
 
 export class AreaGalleryView extends TextFileView {
 	private areaData: AreaFile = { version: "1", name: "", items: [] };
@@ -15,6 +16,7 @@ export class AreaGalleryView extends TextFileView {
 	private masonry = new MasonryController();
 	private imports: AreaImportController;
 	private toolbar: GalleryToolbarController;
+	private selection: SelectionController;
 	// Set to the original bytes when a file can't be parsed, so getViewData can
 	// round-trip them verbatim instead of overwriting a recoverable file.
 	private unreadableData: string | null = null;
@@ -26,6 +28,7 @@ export class AreaGalleryView extends TextFileView {
 		super(leaf);
 		this.imports = new AreaImportController(this, plugin);
 		this.toolbar = new GalleryToolbarController(this, plugin);
+		this.selection = new SelectionController(this, plugin);
 	}
 
 	onload(): void {
@@ -82,9 +85,11 @@ export class AreaGalleryView extends TextFileView {
 		}
 
 		const toolbarEl = this.contentEl.createDiv("area-toolbar");
+		const bulkBarEl = this.contentEl.createDiv();
 		this.gridEl = this.contentEl.createDiv("area-grid");
 		this.gridEl.dataset.cardSize = this.plugin.settings.cardSize;
 		this.toolbar.render(toolbarEl);
+		this.selection.render(bulkBarEl);
 		this.renderGrid();
 	}
 
@@ -92,6 +97,9 @@ export class AreaGalleryView extends TextFileView {
 		// Stop watching the now-detached grid and drop the stale element ref.
 		this.masonry.disconnect();
 		this.gridEl = null;
+		// No bulk bar is rendered on this branch, so the selection has no way back
+		// on screen and no items to act on.
+		this.selection.reset();
 		const container = this.contentEl.createDiv("area-grid area-grid--empty");
 		renderEmptyState({ container, kind: "unreadable" });
 	}
@@ -111,8 +119,13 @@ export class AreaGalleryView extends TextFileView {
 
 		grid.empty();
 
+		// An import, or a delete from the detail view, can strip an id the
+		// selection still holds — drop those before anything reads it back.
+		this.selection.prune(this.areaData.items);
+
 		const items = this.toolbar.getVisibleItems(this.areaData.items);
 		this.toolbar.updateCounts(items.length, this.areaData.items.length);
+		this.selection.syncCounts(items);
 
 		if (items.length === 0) {
 			// No cards to lay out — stop the observer watching this grid so it
@@ -147,6 +160,8 @@ export class AreaGalleryView extends TextFileView {
 				siblings: items,
 				index,
 				showTitle,
+				selected: this.selection.isSelected(item.id),
+				onToggleSelection: (id) => this.selection.toggle(id),
 			});
 		});
 

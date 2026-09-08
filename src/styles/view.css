@@ -3,6 +3,8 @@
 	flex-direction: column;
 	height: 100%;
 	overflow: hidden;
+	/* Anchors the floating selection pill (bulk-bar.css). */
+	position: relative;
 	background: var(--background-primary);
 	color: var(--text-normal);
 	font-family: inherit;

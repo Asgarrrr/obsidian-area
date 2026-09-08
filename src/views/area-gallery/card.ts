@@ -19,6 +19,8 @@ interface RenderAreaCardOptions {
 	siblings: AreaItem[];
 	index: number;
 	showTitle: boolean;
+	selected: boolean;
+	onToggleSelection: (id: string) => void;
 }
 
 export function renderAreaCard({
@@ -29,8 +31,11 @@ export function renderAreaCard({
 	siblings,
 	index,
 	showTitle,
+	selected,
+	onToggleSelection,
 }: RenderAreaCardOptions): void {
 	const card = grid.createDiv("area-card");
+	card.toggleClass("is-selected", selected);
 
 	// Import-time aspect ratio (if known) lets masonry size the card before the
 	// image loads — read back in masonry.ts computeSpan().
@@ -90,6 +95,17 @@ export function renderAreaCard({
 	}
 
 	const displayTitle = getDisplayTitle(item);
+	const label = displayTitle ?? getFileName(item.vaultPath) ?? "Area item";
+
+	renderSelectionControl({
+		media,
+		card,
+		id: item.id,
+		label,
+		selected,
+		onToggleSelection,
+	});
+
 	if (showTitle && displayTitle) {
 		card.createDiv({ cls: "area-card-title", text: displayTitle });
 	}
@@ -99,10 +115,7 @@ export function renderAreaCard({
 	// could never fire either.
 	card.tabIndex = 0;
 	card.setAttribute("role", "button");
-	card.setAttribute(
-		"aria-label",
-		displayTitle ?? getFileName(item.vaultPath) ?? "Area item",
-	);
+	card.setAttribute("aria-label", label);
 
 	const open = () => {
 		void openItemDetailView(app, {
@@ -114,10 +127,46 @@ export function renderAreaCard({
 
 	card.addEventListener("click", open);
 	card.addEventListener("keydown", (evt) => {
+		// Space on the nested checkbox ticks it and bubbles up here; only the card
+		// itself should open the detail view.
+		if (evt.target !== card) return;
 		if (evt.key !== "Enter" && evt.key !== " ") return;
 		// Space would otherwise scroll the grid out from under the card.
 		evt.preventDefault();
 		open();
+	});
+}
+
+interface SelectionControlOptions {
+	media: HTMLElement;
+	card: HTMLElement;
+	id: string;
+	label: string;
+	selected: boolean;
+	onToggleSelection: (id: string) => void;
+}
+
+// The checkbox is the accessible way in and out of a selection. It rides on the
+// media tile so it can stay hidden until the card is hovered or focused, and it
+// ticks the card locally rather than asking for a re-render nobody would see.
+function renderSelectionControl({
+	media,
+	card,
+	id,
+	label,
+	selected,
+	onToggleSelection,
+}: SelectionControlOptions): void {
+	const wrap = media.createDiv("area-card-select");
+	const checkbox = wrap.createEl("input", { type: "checkbox" });
+	checkbox.checked = selected;
+	checkbox.setAttribute("aria-label", `Select ${label}`);
+
+	// The card's own click opens the detail view; ticking a box shouldn't.
+	checkbox.addEventListener("click", (evt) => evt.stopPropagation());
+	checkbox.addEventListener("change", () => {
+		card.toggleClass("is-selected", checkbox.checked);
+		onToggleSelection(id);
 	});
 }
 

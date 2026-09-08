@@ -1,0 +1,59 @@
+/* A floating surface over the grid rather than a full-width band under the
+   toolbar: the band cost a permanent row of chrome and pushed every card down
+   the moment a checkbox was ticked. This overlays instead, so selecting an item
+   never moves the thing you are looking at.
+
+   Every value below is one of Obsidian's own --menu-* / --size-4-* tokens, so
+   the surface is the same one the app paints its context menus with and follows
+   whatever theme is loaded. The .menu class itself is deliberately not used: it
+   forces position: fixed and flex-direction: column, which this bar would have
+   to override right back. */
+.area-bulk-bar {
+	position: absolute;
+	bottom: var(--size-4-4);
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: var(--layer-menu);
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2);
+	border: var(--menu-border-width) solid var(--menu-border-color);
+	border-radius: var(--menu-radius);
+	background-color: var(--menu-background);
+	backdrop-filter: var(--menu-backdrop-filter);
+	box-shadow: var(--menu-shadow);
+}
+
+.area-bulk-bar--hidden {
+	display: none;
+}
+
+.area-bulk-count {
+	padding-left: var(--size-4-1);
+	font-size: var(--font-ui-small);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* Selection deliberately survives filter changes, so say when a bulk action
+   would reach items that are currently off screen. */
+.area-bulk-hidden {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.area-bulk-hidden--empty {
+	display: none;
+}
+
+/* No button styling here on purpose — the two controls are plain Obsidian
+   buttons, and the destructive one carries the app's own .mod-warning. */
+.area-bulk-actions {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	flex: 0 0 auto;
+}

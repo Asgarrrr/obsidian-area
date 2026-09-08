@@ -2,6 +2,9 @@
 	position: relative;
 	cursor: pointer;
 	transition: transform var(--area-dur) var(--area-ease);
+	/* Pressing and dragging across a card otherwise starts a text selection on
+	   the caption, and the drag latches :hover on until the button comes back up. */
+	user-select: none;
 }
 
 .area-card:focus-visible {
@@ -16,15 +19,27 @@
 		0 0 0 4px var(--interactive-accent);
 }
 
+.area-card {
+	--area-card-hover-scale: 1.02;
+	--area-card-press-scale: 0.985;
+}
+
 .area-card:hover {
-	transform: scale(1.02);
+	transform: scale(var(--area-card-hover-scale));
 	/* Lift above neighbours while scaled up. */
 	z-index: 1;
 }
 
 /* Pressed feedback: subtle squash that overrides :hover during the press. */
 .area-card:active {
-	transform: scale(0.985);
+	transform: scale(var(--area-card-press-scale));
+}
+
+/* Pressing the checkbox activates the whole ancestor chain, card included, so
+   the squash used to fire and shrink the card out from under the pointer —
+   right as it sits on a 14px target. Hold the card at its hover size instead. */
+.area-card:has(.area-card-select:active) {
+	--area-card-press-scale: var(--area-card-hover-scale);
 }
 
 /* Rounded tile that clips the image + hover overlay. */
@@ -68,8 +83,12 @@
 	transition: opacity var(--area-dur) var(--area-ease);
 }
 
+/* :focus-visible rather than :focus-within — the selection checkbox keeps the
+   focus after a mouse click, and :focus-within left the clicked card showing its
+   tags while every neighbour hid them. Keyboard focus still reveals it. */
 .area-card:hover .area-card-overlay,
-.area-card:focus-within .area-card-overlay {
+.area-card:focus-visible .area-card-overlay,
+.area-card:has(:focus-visible) .area-card-overlay {
 	opacity: 1;
 }
 
@@ -142,4 +161,49 @@
 
 .area-card-source:active {
 	transform: scale(0.92);
+}
+
+/* --- Selection --- */
+
+/* Stays out of the way until the card is pointed at, so a board of 200 images
+   isn't a board of 200 checkboxes. A ticked card keeps its box on screen. */
+.area-card-select {
+	position: absolute;
+	top: 8px;
+	left: 8px;
+	display: flex;
+	opacity: 0;
+	transition: opacity var(--area-dur) var(--area-ease);
+}
+
+.area-card:hover .area-card-select,
+.area-card:focus-within .area-card-select,
+.area-card.is-selected .area-card-select {
+	opacity: 1;
+}
+
+/* Touch devices have no hover — same reasoning as the overlay above. */
+@media (hover: none) {
+	.area-card-select {
+		opacity: 1;
+	}
+}
+
+.area-card-select input[type="checkbox"] {
+	margin: 0;
+	cursor: pointer;
+	/* The tile underneath can be any colour; the shadow keeps the box readable. */
+	box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
+}
+
+/* Drawn inside the tile, not around it: an outward ring adds 4px on every side
+   and the grid's 8px column gap isn't enough to keep neighbours apart, so
+   selected cards read as touching. Inset costs no layout space at all. */
+.area-card.is-selected .area-card-media::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	box-shadow: inset 0 0 0 3px var(--interactive-accent);
+	pointer-events: none;
 }

@@ -61,6 +61,7 @@ const STYLE_SOURCES = [
 	"src/styles.css",
 	"src/styles/view.css",
 	"src/styles/gallery-toolbar.css",
+	"src/styles/bulk-bar.css",
 	"src/styles/gallery-grid.css",
 	"src/styles/gallery-cards.css",
 	"src/styles/detail-view.css",
