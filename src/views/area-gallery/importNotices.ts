@@ -1,11 +1,46 @@
 import { Notice } from "obsidian";
 import type { ImportImageResult } from "./importImages";
 
+const MAX_FAILURE_LINES = 3;
+const MAX_NAME_LENGTH = 40;
+
 export function showImportImageResultNotice(result: ImportImageResult): void {
-	new Notice(getImportImageResultNoticeMessage(result));
+	const lines = getImportNoticeLines(result);
+	if (lines.length === 1) {
+		new Notice(lines[0]);
+		return;
+	}
+	// Notice renders "\n" as a space; only a fragment yields real lines.
+	const fragment = document.createDocumentFragment();
+	lines.forEach((line, index) => {
+		if (index > 0) fragment.appendChild(document.createElement("br"));
+		fragment.appendChild(document.createTextNode(line));
+	});
+	new Notice(fragment);
 }
 
-function getImportImageResultNoticeMessage(result: ImportImageResult): string {
+// Pure line builder, split from the DOM assembly so bun can test the rules.
+export function getImportNoticeLines(
+	result: ImportImageResult,
+): [string, ...string[]] {
+	// Non-empty by construction: the summary line is always present, which is
+	// what lets `showImportImageResultNotice` read `lines[0]` under
+	// `noUncheckedIndexedAccess`.
+	const lines: [string, ...string[]] = [getSummaryLine(result)];
+
+	const shown = result.failed.slice(0, MAX_FAILURE_LINES);
+	for (const failure of shown) {
+		lines.push(
+			`${truncateName(failure.name)} — ${sanitizeReason(failure.message)}`,
+		);
+	}
+	const hidden = result.failed.length - shown.length;
+	if (hidden > 0) lines.push(`+${hidden} more`);
+
+	return lines;
+}
+
+function getSummaryLine(result: ImportImageResult): string {
 	const parts: string[] = [];
 
 	if (result.items.length > 0) {
@@ -41,6 +76,22 @@ function getImportImageResultNoticeMessage(result: ImportImageResult): string {
 
 	if (parts.length === 0) return "Area: no images added.";
 	return `Area: ${parts.join(", ")}.`;
+}
+
+// Raw fs errors embed the vault's absolute path — noisy, and a notice is no
+// place to leak it.
+function sanitizeReason(message: string | undefined): string {
+	if (!message) return "could not be imported";
+	const cleaned = message
+		.replace(/(['"]?)\/[^\s'"]+\1/g, "…")
+		.replace(/\s+/g, " ")
+		.trim();
+	return cleaned || "could not be imported";
+}
+
+function truncateName(name: string): string {
+	if (name.length <= MAX_NAME_LENGTH) return name;
+	return `${name.slice(0, 24)}…${name.slice(-12)}`;
 }
 
 function formatCount(count: number, singular: string, plural: string): string {
