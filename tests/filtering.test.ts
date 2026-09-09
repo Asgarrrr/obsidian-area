@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { AreaItem } from "../src/types";
+import type { AreaFieldFilter, AreaItem } from "../src/types";
 import {
 	getAllTags,
 	getFilteredItems,
@@ -17,6 +17,7 @@ function item(partial: Partial<AreaItem>): AreaItem {
 		addedAt: partial.addedAt ?? 0,
 		title: partial.title,
 		sourceUrl: partial.sourceUrl,
+		fields: partial.fields,
 	};
 }
 
@@ -25,12 +26,14 @@ function opts(
 		activeTagFilters: Set<string>;
 		searchQuery: string;
 		sortOrder: SortOrder;
+		fieldFilters: AreaFieldFilter[];
 	}> = {},
 ) {
 	return {
 		activeTagFilters: o.activeTagFilters ?? new Set<string>(),
 		searchQuery: o.searchQuery ?? "",
 		sortOrder: o.sortOrder ?? ("newest" as SortOrder),
+		fieldFilters: o.fieldFilters ?? [],
 	};
 }
 
@@ -205,6 +208,85 @@ describe("getFilteredItems — tag intersection", () => {
 			}),
 		);
 		expect(out.map((i) => i.id)).toEqual(["linear-nav"]);
+	});
+});
+
+describe("getFilteredItems — custom field filters", () => {
+	const items = [
+		item({
+			id: "coat",
+			title: "Wool coat",
+			tags: ["piece/veste"],
+			addedAt: 3,
+			fields: { status: "final", rating: 5 },
+		}),
+		item({
+			id: "shirt",
+			title: "Linen shirt",
+			tags: ["piece/chemise"],
+			addedAt: 2,
+			fields: { status: "draft", rating: 3 },
+		}),
+		item({ id: "untagged", title: "No fields", addedAt: 1 }),
+	];
+
+	function ids(fieldFilters: AreaFieldFilter[]): string[] {
+		return getFilteredItems(items, opts({ fieldFilters }))
+			.map((i) => i.id)
+			.sort();
+	}
+
+	test("no field filter returns everything", () => {
+		expect(ids([])).toEqual(["coat", "shirt", "untagged"]);
+	});
+
+	test("a select field narrows to the matching items", () => {
+		expect(
+			ids([{ fieldId: "status", operator: "is", values: ["final"] }]),
+		).toEqual(["coat"]);
+	});
+
+	test("two values on one field widen to their union", () => {
+		expect(
+			ids([{ fieldId: "status", operator: "is", values: ["final", "draft"] }]),
+		).toEqual(["coat", "shirt"]);
+	});
+
+	test("not-empty excludes items carrying no value", () => {
+		expect(ids([{ fieldId: "status", operator: "not-empty" }])).toEqual([
+			"coat",
+			"shirt",
+		]);
+		expect(ids([{ fieldId: "status", operator: "empty" }])).toEqual([
+			"untagged",
+		]);
+	});
+
+	test("field filters intersect with tag filters and search", () => {
+		const out = getFilteredItems(
+			items,
+			opts({
+				activeTagFilters: new Set(["piece/veste"]),
+				searchQuery: "wool",
+				fieldFilters: [
+					{ fieldId: "status", operator: "is", values: ["final"] },
+				],
+			}),
+		);
+		expect(out.map((i) => i.id)).toEqual(["coat"]);
+	});
+
+	test("a field filter that excludes the searched item returns empty", () => {
+		const out = getFilteredItems(
+			items,
+			opts({
+				searchQuery: "wool",
+				fieldFilters: [
+					{ fieldId: "status", operator: "is", values: ["draft"] },
+				],
+			}),
+		);
+		expect(out).toEqual([]);
 	});
 });
 

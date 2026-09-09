@@ -75,9 +75,19 @@
 	flex: 0 0 auto;
 }
 
+/* Schema fields sit in the same bar as tag facets. A dashed edge separates the
+   two vocabularies without spending another colour on the distinction. */
+.area-facet-button--field {
+	border: 1px dashed var(--background-modifier-border);
+}
+
 .area-facet-button.is-active {
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
+}
+
+.area-facet-button--field.is-active {
+	border-color: transparent;
 }
 
 /* The accent background outranks Obsidian's own button:hover, so an active

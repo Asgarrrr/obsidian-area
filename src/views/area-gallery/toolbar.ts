@@ -1,7 +1,13 @@
 import { ButtonComponent, DropdownComponent, SearchComponent } from "obsidian";
 import type { AreaFile } from "../../types";
-import { type Facet, buildFacets } from "./facets";
-import { closeFacetMenu, isFacetMenuOpenFor, openFacetMenu } from "./facetMenu";
+import { type FacetBinding, renderFacetBar } from "./facetBar";
+import { closeFacetMenu } from "./facetMenu";
+import { buildFacets } from "./facets";
+import {
+	buildFieldFacets,
+	getFieldFacetSignature,
+	pruneActiveFieldValues,
+} from "./fieldFacets";
 import {
 	type SortOrder,
 	getAllTags,
@@ -13,6 +19,8 @@ interface RenderAreaToolbarOptions {
 	toolbar: HTMLElement;
 	areaData: AreaFile;
 	activeTagFilters: Set<string>;
+	// Selected values per schema field id — the field equivalent of the tag set.
+	activeFieldValues: Map<string, Set<string>>;
 	searchQuery: string;
 	sortOrder: SortOrder;
 	onConfigureFields: () => void;
@@ -21,11 +29,13 @@ interface RenderAreaToolbarOptions {
 	onSearchChange: (value: string) => void;
 	onSortOrderChange: (sortOrder: SortOrder) => void;
 	onTagFilterToggle: (tag: string) => void;
-	onClearTagFilters: () => void;
+	onFieldValueToggle: (fieldId: string, value: string) => void;
+	onClearAllFilters: () => void;
 }
 
 export interface AreaToolbarHandle {
 	tagSignature: string;
+	fieldSignature: string;
 	// Called by the view once it knows how many items survived the filters.
 	setCounts: (visible: number, total: number) => void;
 }
@@ -41,6 +51,7 @@ export function renderAreaToolbar({
 	toolbar,
 	areaData,
 	activeTagFilters,
+	activeFieldValues,
 	searchQuery,
 	sortOrder,
 	onConfigureFields,
@@ -49,7 +60,8 @@ export function renderAreaToolbar({
 	onSearchChange,
 	onSortOrderChange,
 	onTagFilterToggle,
-	onClearTagFilters,
+	onFieldValueToggle,
+	onClearAllFilters,
 }: RenderAreaToolbarOptions): AreaToolbarHandle {
 	// The toolbar is about to be torn down — an open facet menu would outlive its
 	// anchor and toggle filters nothing is listening to.
@@ -69,11 +81,30 @@ export function renderAreaToolbar({
 	pruneActiveTagFilters(activeTagFilters, allTags);
 	const tagSignature = getTagSignature(allTags);
 
+	const fieldFacets = buildFieldFacets(areaData.items, areaData.schema);
+	pruneActiveFieldValues(activeFieldValues, fieldFacets);
+	const fieldSignature = getFieldFacetSignature(fieldFacets);
+
+	const bindings: FacetBinding[] = [
+		...buildFacets(areaData.items).map((facet) => ({
+			facet,
+			isActive: (tag: string) => activeTagFilters.has(tag),
+			onToggle: onTagFilterToggle,
+		})),
+		...fieldFacets.map((facet) => ({
+			facet,
+			kind: "field" as const,
+			isActive: (value: string) =>
+				activeFieldValues.get(facet.key)?.has(value) ?? false,
+			onToggle: (value: string) => onFieldValueToggle(facet.key, value),
+		})),
+	];
+
 	renderFacetBar(left, {
-		facets: buildFacets(areaData.items),
-		activeTagFilters,
-		onTagFilterToggle,
-		onClearTagFilters,
+		bindings,
+		hasActiveFilters: () =>
+			activeTagFilters.size > 0 || activeFieldValues.size > 0,
+		onClearAll: onClearAllFilters,
 	});
 
 	const right = toolbar.createDiv("area-toolbar-right");
@@ -99,108 +130,9 @@ export function renderAreaToolbar({
 
 	return {
 		tagSignature,
+		fieldSignature,
 		setCounts: (visible, total) => setCounts(countEl, visible, total),
 	};
-}
-
-interface FacetBarOptions {
-	facets: Facet[];
-	activeTagFilters: Set<string>;
-	onTagFilterToggle: (tag: string) => void;
-	onClearTagFilters: () => void;
-}
-
-function renderFacetBar(
-	container: HTMLElement,
-	{
-		facets,
-		activeTagFilters,
-		onTagFilterToggle,
-		onClearTagFilters,
-	}: FacetBarOptions,
-): void {
-	const bar = container.createDiv("area-facets");
-	const syncCallbacks: Array<() => void> = [];
-
-	function syncClearVisibility(): void {
-		clearButton.buttonEl.toggleClass(
-			"area-facet-clear--hidden",
-			activeTagFilters.size === 0,
-		);
-	}
-
-	for (const facet of facets) {
-		syncCallbacks.push(
-			renderFacetButton(bar, facet, activeTagFilters, (tag) => {
-				onTagFilterToggle(tag);
-				syncClearVisibility();
-			}),
-		);
-	}
-
-	const clearButton = new ButtonComponent(bar)
-		.setButtonText("Clear")
-		.setTooltip("Clear tag filters")
-		.onClick(() => {
-			onClearTagFilters();
-			for (const sync of syncCallbacks) sync();
-			syncClearVisibility();
-		});
-	clearButton.buttonEl.addClass("area-facet-clear");
-
-	syncClearVisibility();
-}
-
-// Returns a callback that re-reads the active set and repaints the badge, so an
-// external clear can refresh the button without rebuilding the toolbar.
-function renderFacetButton(
-	bar: HTMLElement,
-	facet: Facet,
-	activeTagFilters: Set<string>,
-	onTagFilterToggle: (tag: string) => void,
-): () => void {
-	const button = new ButtonComponent(bar)
-		.setButtonText(facet.label)
-		.setTooltip(`Filter by ${facet.label.toLowerCase()}`);
-	const buttonEl = button.buttonEl;
-	buttonEl.addClass("area-facet-button");
-	buttonEl.setAttribute("aria-haspopup", "true");
-	buttonEl.setAttribute("aria-expanded", "false");
-
-	const badge = buttonEl.createSpan("area-facet-badge");
-
-	const sync = (): void => {
-		const active = facet.values.filter((value) =>
-			activeTagFilters.has(value.tag),
-		).length;
-		buttonEl.classList.toggle("is-active", active > 0);
-		badge.setText(active > 0 ? String(active) : "");
-		badge.toggleClass("area-facet-badge--hidden", active === 0);
-	};
-
-	button.onClick(() => {
-		// Second click on the open menu's own button dismisses it; the outside
-		// handler deliberately ignores the anchor so this stays a toggle.
-		if (isFacetMenuOpenFor(buttonEl)) {
-			closeFacetMenu();
-			buttonEl.setAttribute("aria-expanded", "false");
-			return;
-		}
-
-		openFacetMenu({
-			anchor: buttonEl,
-			facet,
-			isActive: (tag) => activeTagFilters.has(tag),
-			onToggle: (tag) => {
-				onTagFilterToggle(tag);
-				sync();
-			},
-		});
-		buttonEl.setAttribute("aria-expanded", "true");
-	});
-
-	sync();
-	return sync;
 }
 
 function setCounts(countEl: HTMLElement, visible: number, total: number): void {

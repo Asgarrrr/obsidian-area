@@ -4,6 +4,11 @@ import type { AreaGalleryView } from "../AreaGalleryView";
 import { SchemaEditorModal } from "../SchemaEditorModal";
 import { closeFacetMenu } from "./facetMenu";
 import {
+	buildFieldFacets,
+	getFieldFacetSignature,
+	toFieldFilters,
+} from "./fieldFacets";
+import {
 	type SortOrder,
 	getAllTags,
 	getFilteredItems,
@@ -14,13 +19,18 @@ import { type AreaToolbarHandle, renderAreaToolbar } from "./toolbar";
 
 const SEARCH_DEBOUNCE_MS = 120;
 
-// Owns the search / sort / tag-filter state and the toolbar rendering. The view
-// asks it for the visible item list and lets it drive grid re-renders.
+// Owns the search / sort / tag- and field-filter state and the toolbar
+// rendering. The view asks it for the visible item list and lets it drive grid
+// re-renders.
 export class GalleryToolbarController {
 	private activeTagFilters = new Set<string>();
+	// Selected values per schema field id. Values inside one field are
+	// alternatives; separate fields intersect — same rule as the tag facets.
+	private activeFieldValues = new Map<string, Set<string>>();
 	private searchQuery = "";
 	private sortOrder: SortOrder = "newest";
 	private renderedTagSignature = "";
+	private renderedFieldSignature = "";
 	private searchRenderTimer: number | undefined;
 	private toolbarEl: HTMLElement | null = null;
 	private handle: AreaToolbarHandle | null = null;
@@ -42,22 +52,33 @@ export class GalleryToolbarController {
 			activeTagFilters: this.activeTagFilters,
 			searchQuery: this.searchQuery,
 			sortOrder: this.sortOrder,
+			fieldFilters: toFieldFilters(this.activeFieldValues),
 		});
 	}
 
-	// After an import or tag edit, re-render the toolbar if the available tag set
-	// changed; prunes active filters whose tag no longer exists.
+	// After an import or a tag/field edit, re-render the toolbar if the available
+	// values changed. renderAreaToolbar prunes selections that no longer exist,
+	// so a stale button can't survive the pass.
 	refreshIfTagsChanged(items: AreaItem[]): void {
 		const allTags = getAllTags(items);
-		const nextSignature = getTagSignature(allTags);
+		const nextTagSignature = getTagSignature(allTags);
+		const nextFieldSignature = getFieldFacetSignature(
+			buildFieldFacets(items, this.view.getAreaData().schema),
+		);
 		const didPrune = pruneActiveTagFilters(this.activeTagFilters, allTags);
-		if (nextSignature !== this.renderedTagSignature || didPrune) {
+
+		if (
+			nextTagSignature !== this.renderedTagSignature ||
+			nextFieldSignature !== this.renderedFieldSignature ||
+			didPrune
+		) {
 			this.renderToolbar();
 		}
 	}
 
 	clearFilters(): void {
 		this.activeTagFilters.clear();
+		this.activeFieldValues.clear();
 		this.searchQuery = "";
 		this.renderToolbar();
 	}
@@ -84,6 +105,7 @@ export class GalleryToolbarController {
 			toolbar,
 			areaData: this.view.getAreaData(),
 			activeTagFilters: this.activeTagFilters,
+			activeFieldValues: this.activeFieldValues,
 			searchQuery: this.searchQuery,
 			sortOrder: this.sortOrder,
 			onConfigureFields: () => {
@@ -106,15 +128,31 @@ export class GalleryToolbarController {
 				else this.activeTagFilters.add(tag);
 				this.view.rerenderGrid();
 			},
+			onFieldValueToggle: (fieldId, value) => {
+				const values = this.activeFieldValues.get(fieldId);
+				if (!values) {
+					this.activeFieldValues.set(fieldId, new Set([value]));
+				} else if (values.has(value)) {
+					values.delete(value);
+					// An empty set would keep the field in the map and read as an
+					// active filter matching nothing.
+					if (values.size === 0) this.activeFieldValues.delete(fieldId);
+				} else {
+					values.add(value);
+				}
+				this.view.rerenderGrid();
+			},
 			// Distinct from clearFilters(): the facet bar clears its own buttons in
 			// place, so re-rendering the toolbar here would destroy the open menu.
-			onClearTagFilters: () => {
+			onClearAllFilters: () => {
 				this.activeTagFilters.clear();
+				this.activeFieldValues.clear();
 				this.view.rerenderGrid();
 			},
 		});
 
 		this.renderedTagSignature = this.handle.tagSignature;
+		this.renderedFieldSignature = this.handle.fieldSignature;
 	}
 
 	private queueGridRender(): void {

@@ -12,6 +12,14 @@ export interface AreaFieldDef {
 	options?: string[]; // only used when type === "select"
 }
 
+// One constraint on a custom field. Modelled as a discriminated union so an
+// operator can't carry a payload it has no use for — `empty` has no value,
+// `is` always has a list, `contains` always has a single needle.
+export type AreaFieldFilter =
+	| { fieldId: string; operator: "is" | "is-not"; values: FieldValue[] }
+	| { fieldId: string; operator: "contains"; value: string }
+	| { fieldId: string; operator: "empty" | "not-empty" };
+
 export interface AreaItem {
 	id: string;
 	type: "image" | "video";

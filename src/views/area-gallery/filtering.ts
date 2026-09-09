@@ -1,5 +1,6 @@
-import type { AreaItem } from "../../types";
+import type { AreaFieldFilter, AreaItem } from "../../types";
 import { groupTagsByFacet } from "./facets";
+import { matchesFieldFilters } from "./fieldFilters";
 
 export type SortOrder = "newest" | "oldest" | "title-az" | "title-za";
 
@@ -7,18 +8,21 @@ interface FilterOptions {
 	activeTagFilters: Set<string>;
 	searchQuery: string;
 	sortOrder: SortOrder;
+	fieldFilters: AreaFieldFilter[];
 }
 
 export function getFilteredItems(
 	items: AreaItem[],
-	{ activeTagFilters, searchQuery, sortOrder }: FilterOptions,
+	{ activeTagFilters, searchQuery, sortOrder, fieldFilters }: FilterOptions,
 ): AreaItem[] {
 	// Derived once for the whole pass rather than per item.
 	const tagGroups = groupTagsByFacet(activeTagFilters);
 
 	const filtered = items.filter(
 		(item) =>
-			matchesTagGroups(item, tagGroups) && matchesSearch(item, searchQuery),
+			matchesTagGroups(item, tagGroups) &&
+			matchesSearch(item, searchQuery) &&
+			matchesFieldFilters(item, fieldFilters),
 	);
 
 	return filtered.sort((a, b) => compareItems(a, b, sortOrder));

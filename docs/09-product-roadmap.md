@@ -32,7 +32,10 @@ Capture is the first impression. If adding references is effortless, Area become
 Move beyond simple tag filtering toward saved working views.
 
 - Saved views with search, tags, schema filters, and sort order.
-- Filters for custom fields, not only tags.
+- Filters for custom fields, not only tags. — **Shipped** for multi-select `is`
+  over the values items carry, sharing the tag facet bar. The `empty`,
+  `not-empty` and `contains` operators exist in the model but have no control
+  yet; they land with the quick commands.
 - Sort by custom field, title, source URL, and date.
 - Inbox view for items without title, tags, or fields.
 - Bulk selection. — **Shipped.**

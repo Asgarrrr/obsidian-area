@@ -70,6 +70,21 @@ Build output: `main.js` + `styles.css` at the repo root (required by Obsidian).
 
 **Facet filtering** groups tags by the namespace before the first `/` (`palette/bordeaux` → facet "Palette"). Selection stays a flat `Set<string>`; the semantics live in the matcher — OR within a facet, AND across facets (`src/views/area-gallery/filtering.ts`). Obsidian's `Menu` closes on every click and can't do multi-select, hence the hand-rolled popover in `facetMenu.ts`, which is a module-level singleton and must be closed via `closeFacetMenu()` whenever its anchor is destroyed.
 
+**Custom fields reuse the tag facet UI.** `fieldFacets.ts` turns each schema field
+into a `Facet` whose values are the ones items actually carry — not the schema's
+options, since an option nobody picked is a dead menu row. Selection lives in a
+`Map<fieldId, Set<value>>` and becomes one `is` filter per field via
+`toFieldFilters`, so the OR-within / AND-across rule matches the tag side exactly.
+`facetBar.ts` renders both kinds from a `FacetBinding` carrying its own
+`isActive` predicate — the bar never learns where a selection is stored. Values
+are compared case- and padding-insensitively in `fieldFilters.ts`, because
+hand-edited files store a number field as `4` or `"4"` interchangeably; the facet
+builder collapses such spellings so one entry can't look inert.
+
+`empty` / `not-empty` / `contains` exist in the `AreaFieldFilter` model and are
+tested, but nothing in the toolbar emits them yet — they are the hook for the
+"Show untagged" style quick commands.
+
 **Pure helper modules.** Tag string helpers (`canonicalTag`, `mergeTags`, normalization) live in `src/tagStrings.ts`; the `item.fields` write invariant is `setCustomFieldValue` in `src/fieldValues.ts`. Both are `bun test`-safe — never re-declare them inside DOM modules, and never import them from `TagInput.ts`/`detailSidebar.ts`, which pull Obsidian runtime symbols.
 
 **Bulk edit semantics** are pure functions in `src/views/area-gallery/bulkEdit.ts` (summarize/cycle/patch/apply); the modal and its components (`BulkEditModal`, `BulkTagEditor`, `BulkFieldRows`) are views over them. Apply commits via fresh `getAreaData()` + `canModify()` + direct `save()` — keep it that way (spec: `docs/superpowers/specs/2026-09-09-bulk-edit-design.md`).
