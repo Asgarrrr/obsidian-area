@@ -36,7 +36,10 @@ Move beyond simple tag filtering toward saved working views.
   over the values items carry, sharing the tag facet bar. The `empty`,
   `not-empty` and `contains` operators exist in the model but have no control
   yet; they land with the quick commands.
-- Sort by custom field, title, source URL, and date.
+- Sort by custom field, title, source URL, and date. — **Shipped** for custom
+  fields, title and date, as the serializable `AreaSortState` saved views will
+  carry. Sorting by source URL is not wired: it is an item property, not a
+  schema field, and no order over it was asked for.
 - Inbox view for items without title, tags, or fields.
 - Bulk selection. — **Shipped.**
 - Bulk edit tags, source URL, custom fields, and deletion from an area. —

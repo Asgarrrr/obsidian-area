@@ -85,6 +85,23 @@ builder collapses such spellings so one entry can't look inert.
 tested, but nothing in the toolbar emits them yet — they are the hook for the
 "Show untagged" style quick commands.
 
+**Sort is `AreaSortState`, not a flat string.** A built-in order names itself
+(`{type:"newest"}`); a field order names the field and a direction. `sortState.ts`
+encodes it into the one string a `<select>` option can hold, putting the field id
+last so a colon inside an id isn't read as a delimiter, and decodes tolerantly —
+an unreadable order returns `newest` rather than failing a render. Ranking needs
+the schema, since number-vs-text comparison comes from the field definition, not
+from what happens to be stored; pass `schema` to `getFilteredItems` or a field
+sort silently falls back. Items with no value sort last in **both** directions,
+matching how a missing title already behaves.
+
+**Schema edits must rebuild the toolbar.** `SchemaEditorModal`'s callback used to
+only `requestSave()`. Both the sort dropdown and the field facets are derived
+from `areaData.schema`, so it now re-renders the toolbar and the grid too —
+unconditionally, because a field added before any item fills it shifts no facet
+signature, and because pruning a selection on a deleted field has to be followed
+by a grid render or the board keeps showing that subset.
+
 **Pure helper modules.** Tag string helpers (`canonicalTag`, `mergeTags`, normalization) live in `src/tagStrings.ts`; the `item.fields` write invariant is `setCustomFieldValue` in `src/fieldValues.ts`. Both are `bun test`-safe — never re-declare them inside DOM modules, and never import them from `TagInput.ts`/`detailSidebar.ts`, which pull Obsidian runtime symbols.
 
 **Bulk edit semantics** are pure functions in `src/views/area-gallery/bulkEdit.ts` (summarize/cycle/patch/apply); the modal and its components (`BulkEditModal`, `BulkTagEditor`, `BulkFieldRows`) are views over them. Apply commits via fresh `getAreaData()` + `canModify()` + direct `save()` — keep it that way (spec: `docs/superpowers/specs/2026-09-09-bulk-edit-design.md`).

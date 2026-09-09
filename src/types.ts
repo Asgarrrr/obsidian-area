@@ -12,6 +12,12 @@ export interface AreaFieldDef {
 	options?: string[]; // only used when type === "select"
 }
 
+// How the gallery orders items. Serializable, so a saved view can carry it —
+// the built-in orders name themselves, a field sort names the field it ranks by.
+export type AreaSortState =
+	| { type: "newest" | "oldest" | "title-az" | "title-za" }
+	| { type: "field"; fieldId: string; direction: "asc" | "desc" };
+
 // One constraint on a custom field. Modelled as a discriminated union so an
 // operator can't carry a payload it has no use for — `empty` has no value,
 // `is` always has a list, `contains` always has a single needle.

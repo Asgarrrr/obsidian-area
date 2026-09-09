@@ -1,11 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import type { AreaFieldFilter, AreaItem } from "../src/types";
+import type {
+	AreaFieldDef,
+	AreaFieldFilter,
+	AreaItem,
+	AreaSortState,
+} from "../src/types";
 import {
 	getAllTags,
 	getFilteredItems,
 	getTagSignature,
 	pruneActiveTagFilters,
-	type SortOrder,
 } from "../src/views/area-gallery/filtering";
 
 function item(partial: Partial<AreaItem>): AreaItem {
@@ -25,15 +29,17 @@ function opts(
 	o: Partial<{
 		activeTagFilters: Set<string>;
 		searchQuery: string;
-		sortOrder: SortOrder;
+		sort: AreaSortState;
 		fieldFilters: AreaFieldFilter[];
+		schema: AreaFieldDef[];
 	}> = {},
 ) {
 	return {
 		activeTagFilters: o.activeTagFilters ?? new Set<string>(),
 		searchQuery: o.searchQuery ?? "",
-		sortOrder: o.sortOrder ?? ("newest" as SortOrder),
+		sort: o.sort ?? ({ type: "newest" } as AreaSortState),
 		fieldFilters: o.fieldFilters ?? [],
+		schema: o.schema,
 	};
 }
 
@@ -65,18 +71,20 @@ describe("getFilteredItems", () => {
 
 	test("oldest ascends by addedAt", () => {
 		expect(
-			getFilteredItems(items, opts({ sortOrder: "oldest" })).map((i) => i.id),
+			getFilteredItems(items, opts({ sort: { type: "oldest" } })).map(
+				(i) => i.id,
+			),
 		).toEqual(["b", "c", "a"]);
 	});
 
 	test("title-az / title-za sort alphabetically", () => {
 		expect(
-			getFilteredItems(items, opts({ sortOrder: "title-az" })).map(
+			getFilteredItems(items, opts({ sort: { type: "title-az" } })).map(
 				(i) => i.title,
 			),
 		).toEqual(["Blue sky", "Green tree", "Red car"]);
 		expect(
-			getFilteredItems(items, opts({ sortOrder: "title-za" })).map(
+			getFilteredItems(items, opts({ sort: { type: "title-za" } })).map(
 				(i) => i.title,
 			),
 		).toEqual(["Red car", "Green tree", "Blue sky"]);
@@ -106,7 +114,7 @@ describe("getFilteredItems", () => {
 
 	test("does not mutate the input array", () => {
 		const input = [...items];
-		getFilteredItems(input, opts({ sortOrder: "oldest" }));
+		getFilteredItems(input, opts({ sort: { type: "oldest" } }));
 		expect(input.map((i) => i.id)).toEqual(["a", "b", "c"]);
 	});
 });
@@ -287,6 +295,108 @@ describe("getFilteredItems — custom field filters", () => {
 			}),
 		);
 		expect(out).toEqual([]);
+	});
+});
+
+describe("getFilteredItems — sort by custom field", () => {
+	const schema: AreaFieldDef[] = [
+		{ id: "rating", label: "Rating", type: "number" },
+		{ id: "note", label: "Note", type: "text" },
+	];
+
+	const items = [
+		item({ id: "nine", addedAt: 3, fields: { rating: 9, note: "wool" } }),
+		item({ id: "ten", addedAt: 2, fields: { rating: 10, note: "alpaca" } }),
+		item({ id: "none", addedAt: 1 }),
+	];
+
+	function ids(sort: AreaSortState): string[] {
+		return getFilteredItems(items, opts({ sort, schema })).map((i) => i.id);
+	}
+
+	// Lexicographic ordering would put "10" before "9" and quietly misrank
+	// every rating above single digits.
+	test("a number field ascends numerically", () => {
+		expect(ids({ type: "field", fieldId: "rating", direction: "asc" })).toEqual(
+			["nine", "ten", "none"],
+		);
+	});
+
+	test("descending reverses the ranked items", () => {
+		expect(
+			ids({ type: "field", fieldId: "rating", direction: "desc" }),
+		).toEqual(["ten", "nine", "none"]);
+	});
+
+	test("a text field sorts alphabetically", () => {
+		expect(ids({ type: "field", fieldId: "note", direction: "asc" })).toEqual([
+			"ten",
+			"nine",
+			"none",
+		]);
+	});
+
+	// An item with no value has no rank. Sending it to the bottom in both
+	// directions keeps the ranked items adjacent, as title sorting already does.
+	test("items missing the field sort last in both directions", () => {
+		expect(
+			ids({ type: "field", fieldId: "rating", direction: "asc" }).at(-1),
+		).toBe("none");
+		expect(
+			ids({ type: "field", fieldId: "rating", direction: "desc" }).at(-1),
+		).toBe("none");
+	});
+
+	test("a blank value ranks with the missing ones", () => {
+		const withBlank = [
+			item({ id: "blank", addedAt: 4, fields: { rating: "  " } }),
+			...items,
+		];
+		const out = getFilteredItems(
+			withBlank,
+			opts({
+				sort: { type: "field", fieldId: "rating", direction: "asc" },
+				schema,
+			}),
+		).map((i) => i.id);
+		expect(out.slice(0, 2)).toEqual(["nine", "ten"]);
+		expect(out.slice(2).sort()).toEqual(["blank", "none"]);
+	});
+
+	// A saved view outlives the field it sorted on; falling back beats crashing
+	// or returning an arbitrary order.
+	test("a sort on a field the schema no longer defines falls back to newest", () => {
+		expect(ids({ type: "field", fieldId: "gone", direction: "asc" })).toEqual([
+			"nine",
+			"ten",
+			"none",
+		]);
+	});
+
+	test("without a schema a field sort falls back to newest", () => {
+		expect(
+			getFilteredItems(
+				items,
+				opts({ sort: { type: "field", fieldId: "rating", direction: "asc" } }),
+			).map((i) => i.id),
+		).toEqual(["nine", "ten", "none"]);
+	});
+
+	test("items sharing a value keep their input order", () => {
+		const tied = [
+			item({ id: "first", addedAt: 1, fields: { rating: 5 } }),
+			item({ id: "second", addedAt: 9, fields: { rating: 5 } }),
+			item({ id: "third", addedAt: 4, fields: { rating: 5 } }),
+		];
+		expect(
+			getFilteredItems(
+				tied,
+				opts({
+					sort: { type: "field", fieldId: "rating", direction: "asc" },
+					schema,
+				}),
+			).map((i) => i.id),
+		).toEqual(["first", "second", "third"]);
 	});
 });
 

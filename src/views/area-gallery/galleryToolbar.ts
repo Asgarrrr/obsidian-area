@@ -1,5 +1,5 @@
 import type AreaPlugin from "../../main";
-import type { AreaItem } from "../../types";
+import type { AreaItem, AreaSortState } from "../../types";
 import type { AreaGalleryView } from "../AreaGalleryView";
 import { SchemaEditorModal } from "../SchemaEditorModal";
 import { closeFacetMenu } from "./facetMenu";
@@ -9,7 +9,6 @@ import {
 	toFieldFilters,
 } from "./fieldFacets";
 import {
-	type SortOrder,
 	getAllTags,
 	getFilteredItems,
 	getTagSignature,
@@ -28,7 +27,7 @@ export class GalleryToolbarController {
 	// alternatives; separate fields intersect — same rule as the tag facets.
 	private activeFieldValues = new Map<string, Set<string>>();
 	private searchQuery = "";
-	private sortOrder: SortOrder = "newest";
+	private sort: AreaSortState = { type: "newest" };
 	private renderedTagSignature = "";
 	private renderedFieldSignature = "";
 	private searchRenderTimer: number | undefined;
@@ -51,8 +50,9 @@ export class GalleryToolbarController {
 		return getFilteredItems(items, {
 			activeTagFilters: this.activeTagFilters,
 			searchQuery: this.searchQuery,
-			sortOrder: this.sortOrder,
+			sort: this.sort,
 			fieldFilters: toFieldFilters(this.activeFieldValues),
+			schema: this.view.getAreaData().schema,
 		});
 	}
 
@@ -107,11 +107,18 @@ export class GalleryToolbarController {
 			activeTagFilters: this.activeTagFilters,
 			activeFieldValues: this.activeFieldValues,
 			searchQuery: this.searchQuery,
-			sortOrder: this.sortOrder,
+			sort: this.sort,
 			onConfigureFields: () => {
-				new SchemaEditorModal(this.plugin.app, this.view.getAreaData(), () =>
-					this.view.requestSave(),
-				).open();
+				new SchemaEditorModal(this.plugin.app, this.view.getAreaData(), () => {
+					this.view.requestSave();
+					// The sort dropdown and the field facets are both derived from the
+					// schema, so an edit has to rebuild the toolbar — unconditionally,
+					// since a field added before anything fills it shifts no signature.
+					// Rendering also prunes selections on a field that just went away;
+					// the grid then has to follow, or it keeps showing that subset.
+					this.renderToolbar();
+					this.view.rerenderGrid();
+				}).open();
 			},
 			onImportFiles: () => this.view.openExternalImagePicker(),
 			onImportVaultImage: () => this.view.openVaultImagePicker(),
@@ -119,8 +126,8 @@ export class GalleryToolbarController {
 				this.searchQuery = value.toLowerCase().trim();
 				this.queueGridRender();
 			},
-			onSortOrderChange: (order) => {
-				this.sortOrder = order;
+			onSortChange: (sort) => {
+				this.sort = sort;
 				this.view.rerenderGrid();
 			},
 			onTagFilterToggle: (tag) => {

@@ -1,5 +1,5 @@
 import { ButtonComponent, DropdownComponent, SearchComponent } from "obsidian";
-import type { AreaFile } from "../../types";
+import type { AreaFile, AreaSortState } from "../../types";
 import { type FacetBinding, renderFacetBar } from "./facetBar";
 import { closeFacetMenu } from "./facetMenu";
 import { buildFacets } from "./facets";
@@ -8,12 +8,8 @@ import {
 	getFieldFacetSignature,
 	pruneActiveFieldValues,
 } from "./fieldFacets";
-import {
-	type SortOrder,
-	getAllTags,
-	getTagSignature,
-	pruneActiveTagFilters,
-} from "./filtering";
+import { getAllTags, getTagSignature, pruneActiveTagFilters } from "./filtering";
+import { buildSortOptions, decodeSortState, encodeSortState } from "./sortState";
 
 interface RenderAreaToolbarOptions {
 	toolbar: HTMLElement;
@@ -22,12 +18,12 @@ interface RenderAreaToolbarOptions {
 	// Selected values per schema field id — the field equivalent of the tag set.
 	activeFieldValues: Map<string, Set<string>>;
 	searchQuery: string;
-	sortOrder: SortOrder;
+	sort: AreaSortState;
 	onConfigureFields: () => void;
 	onImportFiles: () => void;
 	onImportVaultImage: () => void;
 	onSearchChange: (value: string) => void;
-	onSortOrderChange: (sortOrder: SortOrder) => void;
+	onSortChange: (sort: AreaSortState) => void;
 	onTagFilterToggle: (tag: string) => void;
 	onFieldValueToggle: (fieldId: string, value: string) => void;
 	onClearAllFilters: () => void;
@@ -40,25 +36,18 @@ export interface AreaToolbarHandle {
 	setCounts: (visible: number, total: number) => void;
 }
 
-const SORT_OPTIONS: ReadonlyArray<readonly [SortOrder, string]> = [
-	["newest", "Newest first"],
-	["oldest", "Oldest first"],
-	["title-az", "Title A → Z"],
-	["title-za", "Title Z → A"],
-];
-
 export function renderAreaToolbar({
 	toolbar,
 	areaData,
 	activeTagFilters,
 	activeFieldValues,
 	searchQuery,
-	sortOrder,
+	sort,
 	onConfigureFields,
 	onImportFiles,
 	onImportVaultImage,
 	onSearchChange,
-	onSortOrderChange,
+	onSortChange,
 	onTagFilterToggle,
 	onFieldValueToggle,
 	onClearAllFilters,
@@ -112,12 +101,18 @@ export function renderAreaToolbar({
 
 	const sortSelect = new DropdownComponent(right);
 	sortSelect.selectEl.addClass("area-sort-select");
-	for (const [value, label] of SORT_OPTIONS) {
+	for (const [value, label] of buildSortOptions(areaData.schema)) {
 		sortSelect.addOption(value, label);
 	}
-	sortSelect.setValue(sortOrder).onChange((value) => {
-		onSortOrderChange(value as SortOrder);
-	});
+	// A sort naming a field the schema dropped has no option to select; falling
+	// back keeps the control from showing a blank value.
+	const encoded = encodeSortState(sort);
+	const selectable = sortSelect.selectEl.querySelector(
+		`option[value="${CSS.escape(encoded)}"]`,
+	);
+	sortSelect
+		.setValue(selectable ? encoded : "newest")
+		.onChange((value) => onSortChange(decodeSortState(value)));
 
 	addIconButton(right, "image-plus", "Import image files", onImportFiles);
 	addIconButton(
