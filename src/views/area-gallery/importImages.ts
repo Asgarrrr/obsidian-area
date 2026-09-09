@@ -130,6 +130,14 @@ export async function importVaultImageFiles(
 				addedAt: Date.now(),
 				title: file.basename,
 			};
+			try {
+				const bytes = await app.vault.adapter.readBinary(file.path);
+				Object.assign(item, await readAspectRatio(new Blob([bytes])));
+			} catch {
+				// Unreadable here means the thumbnail path will surface it; the
+				// card falls back to measuring on load either way.
+			}
+
 			// The image stays where it is in the vault; only its thumbnail is
 			// written into the area's attachments folder.
 			item.thumbPath = await createThumbnail(
