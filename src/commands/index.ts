@@ -3,6 +3,7 @@ import type AreaPlugin from "../main";
 import { AreaGalleryView } from "../views/AreaGalleryView";
 import { FileSuggestModal } from "../views/fileSuggest";
 import { createThumbnail } from "../views/area-gallery/thumbnails";
+import { registerAddToArea } from "./addToArea";
 
 function getActiveAreaView(app: App): AreaGalleryView | null {
 	return app.workspace.getActiveViewOfType(AreaGalleryView);
@@ -181,6 +182,8 @@ export function registerCommands(plugin: AreaPlugin): void {
 			openAreaCommand(plugin);
 		},
 	});
+
+	registerAddToArea(plugin);
 }
 
 export { openAreaCommand };

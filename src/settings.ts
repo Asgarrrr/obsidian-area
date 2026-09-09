@@ -13,6 +13,7 @@ export interface AreaPluginSettings {
 	showCardTitles: boolean;
 	attachmentsDir: string;
 	hideDetailHeader: boolean;
+	addToAreaTarget: "ask" | "active-area";
 }
 
 export const DEFAULT_SETTINGS: AreaPluginSettings = {
@@ -20,6 +21,7 @@ export const DEFAULT_SETTINGS: AreaPluginSettings = {
 	showCardTitles: true,
 	attachmentsDir: ATTACHMENTS_DIR,
 	hideDetailHeader: true,
+	addToAreaTarget: "ask",
 };
 
 export class AreaSettingTab extends PluginSettingTab {
@@ -84,6 +86,25 @@ export class AreaSettingTab extends PluginSettingTab {
 							.forEach((leaf) => {
 								(leaf.view as ItemDetailView).applyHeaderVisibility?.();
 							});
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("“Add to area” destination")
+			.setDesc(
+				"Always ask which area to add to, or add straight into the open " +
+					"area when exactly one is open.",
+			)
+			.addDropdown((drop) =>
+				drop
+					.addOption("ask", "Always ask")
+					.addOption("active-area", "Use the open area")
+					.setValue(this.areaPlugin.settings.addToAreaTarget)
+					.onChange(async (value) => {
+						this.areaPlugin.settings.addToAreaTarget = value as
+							| "ask"
+							| "active-area";
+						await this.areaPlugin.saveSettings();
 					}),
 			);
 
