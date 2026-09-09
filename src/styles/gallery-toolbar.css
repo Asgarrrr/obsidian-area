@@ -210,3 +210,20 @@
 	font-size: var(--font-ui-smaller);
 	font-variant-numeric: tabular-nums;
 }
+
+/* Saved views sit on the right, before the count: switching a view is a
+   navigation act, not one of the filter controls on the left. */
+.area-saved-views {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: 0 0 auto;
+}
+
+.area-saved-view-select {
+	max-width: 160px;
+}
+
+.area-saved-view-actions {
+	flex: 0 0 auto;
+}

@@ -39,11 +39,27 @@ export interface AreaItem {
 	fields?: Record<string, FieldValue>; // values keyed by AreaFieldDef.id
 }
 
+// A reusable gallery state. Absent keys mean "no filter on that dimension",
+// so an unfiltered view serializes as `{}` rather than a wall of empty arrays.
+export interface AreaFilterState {
+	searchQuery?: string;
+	tags?: string[];
+	fields?: AreaFieldFilter[];
+}
+
+export interface AreaSavedView {
+	id: string;
+	label: string;
+	filters: AreaFilterState;
+	sort?: AreaSortState; // absent = the default order
+}
+
 export interface AreaFile {
 	version: "1";
 	name: string;
 	icon?: string;
 	color?: string;
 	schema?: AreaFieldDef[]; // absent = no custom fields
+	views?: AreaSavedView[]; // absent = no saved views
 	items: AreaItem[];
 }

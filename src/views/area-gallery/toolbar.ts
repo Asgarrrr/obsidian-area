@@ -1,5 +1,5 @@
 import { ButtonComponent, DropdownComponent, SearchComponent } from "obsidian";
-import type { AreaFile, AreaSortState } from "../../types";
+import type { AreaFile, AreaSavedView, AreaSortState } from "../../types";
 import { type FacetBinding, renderFacetBar } from "./facetBar";
 import { closeFacetMenu } from "./facetMenu";
 import { buildFacets } from "./facets";
@@ -9,6 +9,10 @@ import {
 	pruneActiveFieldValues,
 } from "./fieldFacets";
 import { getAllTags, getTagSignature, pruneActiveTagFilters } from "./filtering";
+import {
+	renderSavedViewsBar,
+	type SavedViewsBarOptions,
+} from "./savedViewsBar";
 import { buildSortOptions, decodeSortState, encodeSortState } from "./sortState";
 
 interface RenderAreaToolbarOptions {
@@ -19,6 +23,17 @@ interface RenderAreaToolbarOptions {
 	activeFieldValues: Map<string, Set<string>>;
 	searchQuery: string;
 	sort: AreaSortState;
+	savedViews: AreaSavedView[];
+	activeViewId: string | null;
+	canModify: boolean;
+	savedViewActions: Pick<
+		SavedViewsBarOptions,
+		| "onSelect"
+		| "onSaveAsNew"
+		| "onUpdateActive"
+		| "onRenameActive"
+		| "onDeleteActive"
+	>;
 	onConfigureFields: () => void;
 	onImportFiles: () => void;
 	onImportVaultImage: () => void;
@@ -32,6 +47,7 @@ interface RenderAreaToolbarOptions {
 export interface AreaToolbarHandle {
 	tagSignature: string;
 	fieldSignature: string;
+	setActiveView: (id: string | null) => void;
 	// Called by the view once it knows how many items survived the filters.
 	setCounts: (visible: number, total: number) => void;
 }
@@ -43,6 +59,10 @@ export function renderAreaToolbar({
 	activeFieldValues,
 	searchQuery,
 	sort,
+	savedViews,
+	activeViewId,
+	canModify,
+	savedViewActions,
 	onConfigureFields,
 	onImportFiles,
 	onImportVaultImage,
@@ -99,6 +119,14 @@ export function renderAreaToolbar({
 	const right = toolbar.createDiv("area-toolbar-right");
 	const countEl = right.createDiv("area-toolbar-count");
 
+	const savedViewsHandle = renderSavedViewsBar({
+		container: right,
+		views: savedViews,
+		activeViewId,
+		canModify,
+		...savedViewActions,
+	});
+
 	const sortSelect = new DropdownComponent(right);
 	sortSelect.selectEl.addClass("area-sort-select");
 	for (const [value, label] of buildSortOptions(areaData.schema)) {
@@ -126,6 +154,7 @@ export function renderAreaToolbar({
 	return {
 		tagSignature,
 		fieldSignature,
+		setActiveView: savedViewsHandle.setActiveView,
 		setCounts: (visible, total) => setCounts(countEl, visible, total),
 	};
 }

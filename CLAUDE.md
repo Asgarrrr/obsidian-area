@@ -95,6 +95,30 @@ from what happens to be stored; pass `schema` to `getFilteredItems` or a field
 sort silently falls back. Items with no value sort last in **both** directions,
 matching how a missing title already behaves.
 
+**Saved views are the only toolbar state that reaches disk.** `savedViews.ts` is
+pure — capture / apply / normalize / upsert / remove — and
+`savedViewsController.ts` owns the selection plus every write to
+`areaData.views`. All writes funnel through its private `commit()`: it re-reads
+the file, refuses when `canModify()` is false, and **deletes the `views` key
+when the last view goes**, so an area that never had saved views stays
+byte-identical. Never write `areaData.views` from anywhere else.
+
+`normalizeSavedViews` treats the key as untrusted JSON, because it is: entries
+without an id or a label are dropped, a duplicate id keeps the first, and a
+broken `filters` block is emptied rather than taking its view down. `applySavedView`
+returns fresh `Set`/`Map` instances — handing back the stored arrays would let a
+later facet click rewrite the file through the live state.
+
+Only `is` filters have a facet control, so `applySavedView` skips the other
+operators. They survive on disk untouched; they simply have nothing to light up.
+
+**The saved-view select is repainted through the handle, not a re-render.**
+A facet click deliberately does not rebuild the toolbar (it would destroy the
+open facet menu), so `AreaGalleryView.renderGrid` calls `syncSavedViewSelection()`
+next to `updateCounts` — same pattern. `isSavedViewDirty` compares a *canonical*
+tuple, not the objects: key order in a stored view is whatever `JSON.parse`
+returned, and tag selection is a set whose click order carries no meaning.
+
 **Schema edits must rebuild the toolbar.** `SchemaEditorModal`'s callback used to
 only `requestSave()`. Both the sort dropdown and the field facets are derived
 from `areaData.schema`, so it now re-renders the toolbar and the grid too —

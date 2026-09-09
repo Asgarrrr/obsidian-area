@@ -31,7 +31,10 @@ Capture is the first impression. If adding references is effortless, Area become
 
 Move beyond simple tag filtering toward saved working views.
 
-- Saved views with search, tags, schema filters, and sort order.
+- Saved views with search, tags, schema filters, and sort order. — **Shipped.**
+  Create, update, rename, delete and switch, persisted as `views` on the `.area`
+  file. Old files without the key keep working, and the key is removed again
+  when the last view goes. Views are not shared between areas.
 - Filters for custom fields, not only tags. — **Shipped** for multi-select `is`
   over the values items carry, sharing the tag facet bar. The `empty`,
   `not-empty` and `contains` operators exist in the model but have no control
@@ -126,7 +129,7 @@ Users install a plugin into a real vault only if they trust it.
 
 1. Capture improvements and duplicate handling.
 2. Bulk selection and bulk edit. — **Done.**
-3. Saved views and custom-field filters.
+3. Saved views and custom-field filters. — **Done.**
 4. Rich item detail with Markdown notes and copy/link actions.
 5. Data validation, repair tools, and tests.
 6. Visual polish, screenshots, README, and release checklist.

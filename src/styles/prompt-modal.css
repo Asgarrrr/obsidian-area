@@ -1,0 +1,14 @@
+.area-prompt-modal h3 {
+	margin: 0 0 12px;
+}
+
+.area-prompt-input {
+	width: 100%;
+}
+
+.area-prompt-buttons {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 16px;
+}

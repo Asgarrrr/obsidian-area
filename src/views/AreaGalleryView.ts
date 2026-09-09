@@ -125,6 +125,7 @@ export class AreaGalleryView extends TextFileView {
 
 		const items = this.toolbar.getVisibleItems(this.areaData.items);
 		this.toolbar.updateCounts(items.length, this.areaData.items.length);
+		this.toolbar.syncSavedViewSelection();
 		this.selection.syncCounts(items);
 
 		if (items.length === 0) {

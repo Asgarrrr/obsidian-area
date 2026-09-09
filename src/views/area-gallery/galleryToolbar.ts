@@ -14,6 +14,8 @@ import {
 	getTagSignature,
 	pruneActiveTagFilters,
 } from "./filtering";
+import type { ToolbarFilterState } from "./savedViews";
+import { SavedViewsController } from "./savedViewsController";
 import { type AreaToolbarHandle, renderAreaToolbar } from "./toolbar";
 
 const SEARCH_DEBOUNCE_MS = 120;
@@ -33,11 +35,40 @@ export class GalleryToolbarController {
 	private searchRenderTimer: number | undefined;
 	private toolbarEl: HTMLElement | null = null;
 	private handle: AreaToolbarHandle | null = null;
+	private savedViews: SavedViewsController;
 
 	constructor(
 		private view: AreaGalleryView,
 		private plugin: AreaPlugin,
-	) {}
+	) {
+		this.savedViews = new SavedViewsController(plugin.app, view, {
+			capture: () => this.captureState(),
+			restore: (state) => this.restoreState(state),
+			refresh: () => {
+				this.renderToolbar();
+				this.view.rerenderGrid();
+			},
+		});
+	}
+
+	// The filters as they stand, in the shape a saved view is captured from.
+	private captureState(): ToolbarFilterState {
+		return {
+			searchQuery: this.searchQuery,
+			activeTagFilters: this.activeTagFilters,
+			activeFieldValues: this.activeFieldValues,
+			sort: this.sort,
+		};
+	}
+
+	private restoreState(state: ToolbarFilterState): void {
+		this.searchQuery = state.searchQuery;
+		this.activeTagFilters = state.activeTagFilters;
+		this.activeFieldValues = state.activeFieldValues;
+		this.sort = state.sort;
+		this.renderToolbar();
+		this.view.rerenderGrid();
+	}
 
 	// Bind to the toolbar element created on each full render.
 	render(toolbarEl: HTMLElement): void {
@@ -83,6 +114,13 @@ export class GalleryToolbarController {
 		this.renderToolbar();
 	}
 
+	// Re-reads whether the live filters still match the selected view. Called on
+	// every grid render, since a facet click changes the filters without
+	// rebuilding the toolbar.
+	syncSavedViewSelection(): void {
+		this.handle?.setActiveView(this.savedViews.getActiveId());
+	}
+
 	// Report how much of the board survived the filters. Pushed through a handle
 	// rather than a toolbar re-render so it can't tear down an open facet menu.
 	updateCounts(visible: number, total: number): void {
@@ -108,6 +146,16 @@ export class GalleryToolbarController {
 			activeFieldValues: this.activeFieldValues,
 			searchQuery: this.searchQuery,
 			sort: this.sort,
+			savedViews: this.savedViews.getViews(),
+			activeViewId: this.savedViews.getActiveId(),
+			canModify: this.view.canModify(),
+			savedViewActions: {
+				onSelect: (id) => this.savedViews.select(id),
+				onSaveAsNew: () => this.savedViews.saveAsNew(),
+				onUpdateActive: () => this.savedViews.updateActive(),
+				onRenameActive: () => this.savedViews.renameActive(),
+				onDeleteActive: () => this.savedViews.deleteActive(),
+			},
 			onConfigureFields: () => {
 				new SchemaEditorModal(this.plugin.app, this.view.getAreaData(), () => {
 					this.view.requestSave();
