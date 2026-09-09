@@ -29,6 +29,9 @@ export interface ImportImageResult {
 
 export interface ImportImagesOptions {
 	onProgress?: (done: number, total: number) => void;
+	// Applied to every created item; callers pass it only for single-file
+	// batches where the pairing is unambiguous.
+	sourceUrl?: string;
 }
 
 export async function importImageFiles(
@@ -65,7 +68,12 @@ export async function importImageFiles(
 					`${crypto.randomUUID()}.${ext}`,
 					existingVaultPaths,
 				);
-				const item = await createExternalImageItem(app, file, vaultPath);
+				const item = await createExternalImageItem(
+					app,
+					file,
+					vaultPath,
+					options?.sourceUrl,
+				);
 				item.thumbPath = await createThumbnail(
 					app,
 					item,
@@ -160,6 +168,7 @@ async function createExternalImageItem(
 	app: App,
 	file: File,
 	vaultPath: string,
+	sourceUrl?: string,
 ): Promise<AreaItem> {
 	const buffer = await file.arrayBuffer();
 	await app.vault.createBinary(vaultPath, buffer);
@@ -171,6 +180,7 @@ async function createExternalImageItem(
 		tags: [],
 		addedAt: Date.now(),
 		title: getTitleFromFileName(file.name, "Imported image"),
+		...(sourceUrl ? { sourceUrl } : {}),
 		...(await readAspectRatio(file)),
 	};
 }

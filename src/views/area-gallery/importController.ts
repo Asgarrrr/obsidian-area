@@ -6,6 +6,7 @@ import { commitImportedItems } from "./commitImports";
 import { importImageFiles, importVaultImageFiles } from "./importImages";
 import { showImportImageResultNotice } from "./importNotices";
 import { createImportProgress } from "./importProgress";
+import { extractImgSrcs, resolvePasteSourceUrl } from "./pasteSource";
 import { openVaultImageSuggest } from "./vaultImageSuggest";
 
 // Brings images into the board — drag-and-drop, paste, the file/vault pickers —
@@ -66,7 +67,10 @@ export class AreaImportController {
 		});
 	}
 
-	async importFiles(files: File[]): Promise<void> {
+	async importFiles(
+		files: File[],
+		options?: { sourceUrl?: string },
+	): Promise<void> {
 		if (this.importsBlocked()) return;
 		// Captured before any await: a long import must land in the area the
 		// user dropped onto, not whatever file the leaf shows when it finishes.
@@ -80,7 +84,7 @@ export class AreaImportController {
 				this.plugin.settings.attachmentsDir,
 				files,
 				this.view.getItems(),
-				{ onProgress: progress.onProgress },
+				{ onProgress: progress.onProgress, sourceUrl: options?.sourceUrl },
 			);
 			showImportImageResultNotice(
 				await commitImportedItems(this.plugin.app, areaPath, result),
@@ -166,8 +170,15 @@ export class AreaImportController {
 				return;
 			}
 
+			// The DataTransfer dies when the handler returns: everything it
+			// holds must be read before the first await.
+			const html = e.clipboardData?.getData("text/html") ?? "";
 			e.preventDefault();
-			await this.importFiles(files);
+
+			const sourceUrl = html
+				? resolvePasteSourceUrl(extractImgSrcs(html), files.length)
+				: undefined;
+			await this.importFiles(files, { sourceUrl });
 		});
 	}
 

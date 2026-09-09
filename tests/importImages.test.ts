@@ -55,4 +55,15 @@ describe("importImageFiles options", () => {
 			[2, 2],
 		]);
 	});
+
+	test("sourceUrl lands on the created item", async () => {
+		const result = await importImageFiles(
+			makeImportApp(),
+			"attachments",
+			[new File([new Uint8Array(4)], "a.png", { type: "image/png" })],
+			[],
+			{ sourceUrl: "https://origin.example/a.png" },
+		);
+		expect(result.items[0]?.sourceUrl).toBe("https://origin.example/a.png");
+	});
 });
