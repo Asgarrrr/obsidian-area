@@ -72,7 +72,12 @@ function addMenuEntry(
 
 function addFilesToArea(plugin: AreaPlugin, images: TFile[]): void {
 	pickTargetArea(plugin, (target) => {
-		void importInto(plugin, target.path, images);
+		// Known failures fold into the result notice; this catch is for the
+		// unexpected — without it they die as silent unhandled rejections.
+		importInto(plugin, target.path, images).catch((error: unknown) => {
+			console.error("Area: add to area failed", error);
+			new Notice("Area: could not add the images.");
+		});
 	});
 }
 

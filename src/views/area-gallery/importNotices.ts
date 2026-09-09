@@ -78,12 +78,24 @@ function getSummaryLine(result: ImportImageResult): string {
 	return `Area: ${parts.join(", ")}.`;
 }
 
+// Errno jargon means nothing to the user; anything unrecognized keeps its
+// text, minus embedded paths.
+const ERROR_CAUSES: Array<[RegExp, string]> = [
+	[/ENOENT/, "file not found"],
+	[/EACCES|EPERM/, "permission denied"],
+	[/ENOSPC/, "disk full"],
+];
+
 // Raw fs errors embed the vault's absolute path — noisy, and a notice is no
 // place to leak it.
 function sanitizeReason(message: string | undefined): string {
 	if (!message) return "could not be imported";
+	for (const [pattern, cause] of ERROR_CAUSES) {
+		if (pattern.test(message)) return cause;
+	}
 	const cleaned = message
 		.replace(/(['"]?)\/[^\s'"]+\1/g, "…")
+		.replace(/(['"]?)[A-Za-z]:\\[^\s'"]+\1/g, "…")
 		.replace(/\s+/g, " ")
 		.trim();
 	return cleaned || "could not be imported";

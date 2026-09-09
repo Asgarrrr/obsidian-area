@@ -53,6 +53,28 @@ describe("getImportNoticeLines", () => {
 		expect(lines[2]).not.toContain("/Users");
 	});
 
+	test("maps common I/O errors to short causes", () => {
+		const lines = getImportNoticeLines(
+			result({
+				failed: [
+					{ name: "a.png", message: "ENOENT: no such file or directory" },
+					{ name: "b.png", message: "EACCES: permission denied, open 'x'" },
+				],
+			}),
+		);
+		expect(lines[1]).toBe("a.png — file not found");
+		expect(lines[2]).toBe("b.png — permission denied");
+	});
+
+	test("strips Windows absolute paths too", () => {
+		const lines = getImportNoticeLines(
+			result({
+				failed: [{ name: "a.png", message: "boom at 'C:\\Users\\me\\x.png'" }],
+			}),
+		);
+		expect(lines[1]).not.toContain("C:\\");
+	});
+
 	test("truncates long file names", () => {
 		const name = `${"x".repeat(60)}.png`;
 		const lines = getImportNoticeLines(
