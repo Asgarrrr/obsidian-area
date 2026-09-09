@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { getImportNoticeLines } from "../src/views/area-gallery/importNotices";
-import type { ImportImageResult } from "../src/views/area-gallery/importImages";
+import type { ImportImageResult } from "../src/views/area-gallery/importResult";
 
 function result(partial: Partial<ImportImageResult>): ImportImageResult {
 	return {

@@ -81,6 +81,14 @@ closed-file at commit time: direct `save()` through the view, atomic
 add a second `.area` insertion path; the pure dedup rule lives in
 `insertItems.ts`.
 
+**One module per import source.** `importExternalImages.ts` copies files from
+outside the vault; `importVaultImages.ts` references files already in it. Both
+report through `importResult.ts` (`ImportImageResult`, `createImportImageResult`,
+`getExistingVaultPaths`) and place files through `attachmentPaths.ts`
+(`ensureVaultFolder`, `getUniqueAttachmentPath`). A third source is a new module
+against those two, not another branch inside an existing one — and only the
+external flow carries `sourceUrl`.
+
 ## Obsidian API Surface (relevant for this plugin)
 
 - `ItemView` / `WorkspaceLeaf` — register custom view types (`this.registerView`)

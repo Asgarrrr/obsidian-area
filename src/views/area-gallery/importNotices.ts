@@ -1,5 +1,5 @@
 import { Notice } from "obsidian";
-import type { ImportImageResult } from "./importImages";
+import type { ImportImageResult } from "./importResult";
 
 const MAX_FAILURE_LINES = 3;
 const MAX_NAME_LENGTH = 40;

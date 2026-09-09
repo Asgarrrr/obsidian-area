@@ -5,7 +5,7 @@ import {
 	findAreaGallery,
 	type GallerySource,
 } from "../item-detail/galleryBridge";
-import type { ImportImageIssue, ImportImageResult } from "./importImages";
+import type { ImportImageIssue, ImportImageResult } from "./importResult";
 import { partitionImportedItems } from "./insertItems";
 import { removeThumbnail } from "./thumbnails";
 

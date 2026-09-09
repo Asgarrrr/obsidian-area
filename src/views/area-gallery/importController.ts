@@ -3,9 +3,10 @@ import type AreaPlugin from "../../main";
 import type { AreaGalleryView } from "../AreaGalleryView";
 import { getClipboardImageFiles } from "./clipboard";
 import { commitImportedItems } from "./commitImports";
-import { importImageFiles, importVaultImageFiles } from "./importImages";
+import { importImageFiles } from "./importExternalImages";
 import { showImportImageResultNotice } from "./importNotices";
 import { createImportProgress } from "./importProgress";
+import { importVaultImageFiles } from "./importVaultImages";
 import { extractImgSrcs, resolvePasteSourceUrl } from "./pasteSource";
 import { openVaultImageSuggest } from "./vaultImageSuggest";
 

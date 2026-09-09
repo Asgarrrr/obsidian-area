@@ -1,22 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { App } from "obsidian";
-import type { AreaItem } from "../src/types";
-import {
-	hasAreaItemWithVaultPath,
-	importImageFiles,
-} from "../src/views/area-gallery/importImages";
-
-describe("hasAreaItemWithVaultPath", () => {
-	const items = [{ vaultPath: "a/b.png" } as AreaItem];
-
-	test("true when a matching vaultPath exists", () => {
-		expect(hasAreaItemWithVaultPath(items, "a/b.png")).toBe(true);
-	});
-
-	test("false otherwise", () => {
-		expect(hasAreaItemWithVaultPath(items, "a/c.png")).toBe(false);
-	});
-});
+import { importImageFiles } from "../src/views/area-gallery/importExternalImages";
 
 // Minimal fake App for the external-import path. createImageBitmap doesn't
 // exist under bun, so aspect-ratio and thumbnail work no-op via their own

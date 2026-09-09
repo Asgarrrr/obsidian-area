@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { TFile, type App } from "obsidian";
 import { commitImportedItems } from "../src/views/area-gallery/commitImports";
-import type { ImportImageResult } from "../src/views/area-gallery/importImages";
+import type { ImportImageResult } from "../src/views/area-gallery/importResult";
 import type { AreaFile, AreaItem } from "../src/types";
 import type { GallerySource } from "../src/views/item-detail/galleryBridge";
 
