@@ -1,20 +1,15 @@
 import { Notice, type TFile } from "obsidian";
 import type AreaPlugin from "../../main";
-import type { AreaItem } from "../../types";
 import type { AreaGalleryView } from "../AreaGalleryView";
 import { getClipboardImageFiles } from "./clipboard";
-import {
-	hasAreaItemWithVaultPath,
-	importImageFiles,
-	type ImportImageResult,
-	importVaultImageFiles,
-} from "./importImages";
+import { commitImportedItems } from "./commitImports";
+import { importImageFiles, importVaultImageFiles } from "./importImages";
 import { showImportImageResultNotice } from "./importNotices";
 import { openVaultImageSuggest } from "./vaultImageSuggest";
 
-// Brings images into the board — drag-and-drop, paste, the file/vault pickers,
-// and de-duped insertion — driving the view through registerDomEvent / contentEl
-// / requestSave / getItems / notifyItemsChanged.
+// Brings images into the board — drag-and-drop, paste, the file/vault pickers —
+// driving the view through registerDomEvent / contentEl / getItems. Dedup and
+// persistence belong to commitImportedItems.
 export class AreaImportController {
 	private dragDepth = 0;
 
@@ -72,24 +67,36 @@ export class AreaImportController {
 
 	async importFiles(files: File[]): Promise<void> {
 		if (this.importsBlocked()) return;
+		// Captured before any await: a long import must land in the area the
+		// user dropped onto, not whatever file the leaf shows when it finishes.
+		const areaPath = this.view.file?.path;
+		if (!areaPath) return;
+
 		const result = await importImageFiles(
 			this.plugin.app,
 			this.plugin.settings.attachmentsDir,
 			files,
 			this.view.getItems(),
 		);
-		this.applyImportResult(result);
+		showImportImageResultNotice(
+			await commitImportedItems(this.plugin.app, areaPath, result),
+		);
 	}
 
 	async importVaultFiles(files: TFile[]): Promise<void> {
 		if (this.importsBlocked()) return;
+		const areaPath = this.view.file?.path;
+		if (!areaPath) return;
+
 		const result = await importVaultImageFiles(
 			this.plugin.app,
 			this.plugin.settings.attachmentsDir,
 			files,
 			this.view.getItems(),
 		);
-		this.applyImportResult(result);
+		showImportImageResultNotice(
+			await commitImportedItems(this.plugin.app, areaPath, result),
+		);
 	}
 
 	// Refuse imports into a file the view couldn't parse — otherwise the image
@@ -162,39 +169,6 @@ export class AreaImportController {
 	private clearDragState(): void {
 		this.dragDepth = 0;
 		this.view.contentEl.removeClass("area-is-dragging");
-	}
-
-	private applyImportResult(result: ImportImageResult): void {
-		const items = this.view.getItems();
-		const itemsToAdd: AreaItem[] = [];
-		const skippedDuplicates = [...result.skippedDuplicates];
-
-		for (const item of result.items) {
-			if (
-				hasAreaItemWithVaultPath(items, item.vaultPath) ||
-				hasAreaItemWithVaultPath(itemsToAdd, item.vaultPath)
-			) {
-				skippedDuplicates.push({
-					name: item.title ?? item.vaultPath,
-					vaultPath: item.vaultPath,
-				});
-				continue;
-			}
-
-			itemsToAdd.push(item);
-		}
-
-		if (itemsToAdd.length > 0) {
-			items.unshift(...itemsToAdd);
-			this.view.requestSave();
-			this.view.notifyItemsChanged();
-		}
-
-		showImportImageResultNotice({
-			...result,
-			items: itemsToAdd,
-			skippedDuplicates,
-		});
 	}
 }
 

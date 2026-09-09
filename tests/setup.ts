@@ -6,7 +6,12 @@ import { mock } from "bun:test";
 // stubbed here — pure logic is what we're exercising, not Obsidian itself.
 mock.module("obsidian", () => ({
 	Notice: class {
-		constructor(_message?: string) {}
+		constructor(_message?: unknown) {}
 	},
 	normalizePath: (path: string) => path,
+	TFile: class {
+		path = "";
+		basename = "";
+		extension = "";
+	},
 }));

@@ -11,6 +11,12 @@ import type { AreaFile } from "../../types";
 export interface GallerySource {
 	file: TFile | null;
 	getAreaData(): AreaFile;
+	// False while the underlying file couldn't be parsed — a commit through the
+	// view must refuse rather than save a phantom AreaFile.
+	canModify(): boolean;
+	// Direct save for atomic external commits; requestSave stays for callers
+	// that batch user edits (detail view).
+	save(): Promise<void>;
 	requestSave(): void;
 	notifyItemsChanged(): void;
 }
