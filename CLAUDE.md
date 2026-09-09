@@ -74,6 +74,13 @@ Build output: `main.js` + `styles.css` at the repo root (required by Obsidian).
 
 **Bulk edit semantics** are pure functions in `src/views/area-gallery/bulkEdit.ts` (summarize/cycle/patch/apply); the modal and its components (`BulkEditModal`, `BulkTagEditor`, `BulkFieldRows`) are views over them. Apply commits via fresh `getAreaData()` + `canModify()` + direct `save()` — keep it that way (spec: `docs/superpowers/specs/2026-09-09-bulk-edit-design.md`).
 
+**Import commits go through `commitImportedItems`** (`src/views/area-gallery/commitImports.ts`) —
+the single write path for adding items to an area. It resolves open-view vs
+closed-file at commit time: direct `save()` through the view, atomic
+`Vault.process` otherwise. Never `requestSave` an import commit, and never
+add a second `.area` insertion path; the pure dedup rule lives in
+`insertItems.ts`.
+
 ## Obsidian API Surface (relevant for this plugin)
 
 - `ItemView` / `WorkspaceLeaf` — register custom view types (`this.registerView`)

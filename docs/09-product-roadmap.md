@@ -17,13 +17,21 @@ Keep the plugin local-first. Do not add network behavior unless it has a clear u
 
 Make adding material to an area fast and reliable.
 
-- Paste an image from the clipboard directly into the active area.
-- Improve drag and drop with visible drop state, progress, and readable errors.
-- Import images that already exist in the vault.
-- Suggest the original filename as the item title.
-- Detect duplicates by existing vault path, and later by a lightweight hash if needed.
-- Add a command to add the current file or image to the active area.
-- Preserve useful source metadata when available, without guessing or calling external services.
+- Paste an image from the clipboard directly into the active area. — **Shipped.**
+- Improve drag and drop with visible drop state, progress, and readable errors. — **Shipped.**
+- Import images that already exist in the vault. — **Shipped.**
+- Suggest the original filename as the item title. — **Shipped.**
+- Detect duplicates by existing vault path, and later by a lightweight hash if
+  needed. — **Path-based shipped.** Hash dedup deferred; note that externally
+  dropped files always get a fresh path, so only a hash can dedup them.
+- Add a command to add the current file or image to the active area. —
+  **Shipped** (spec: `superpowers/specs/2026-09-09-capture-gaps-design.md`).
+  Images stored under dot-folders have no `TFile` and stay out of reach;
+  cross-area copy is a separate feature.
+- Preserve useful source metadata when available, without guessing or calling
+  external services. — **Shipped for paste** (asset URL, single-image pastes
+  only). Drop capture is impossible without network calls: browser drags carry
+  no file, Finder drags carry `file://` URLs.
 
 Capture is the first impression. If adding references is effortless, Area becomes part of daily Obsidian use.
 
@@ -118,7 +126,7 @@ Users install a plugin into a real vault only if they trust it.
 
 ## Recommended build order
 
-1. Capture improvements and duplicate handling.
+1. Capture improvements and duplicate handling. — **Done** (hash dedup deferred).
 2. Bulk selection and bulk edit. — **Done.**
 3. Saved views and custom-field filters.
 4. Rich item detail with Markdown notes and copy/link actions.
