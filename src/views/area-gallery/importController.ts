@@ -5,6 +5,7 @@ import { getClipboardImageFiles } from "./clipboard";
 import { commitImportedItems } from "./commitImports";
 import { importImageFiles, importVaultImageFiles } from "./importImages";
 import { showImportImageResultNotice } from "./importNotices";
+import { createImportProgress } from "./importProgress";
 import { openVaultImageSuggest } from "./vaultImageSuggest";
 
 // Brings images into the board — drag-and-drop, paste, the file/vault pickers —
@@ -72,15 +73,21 @@ export class AreaImportController {
 		const areaPath = this.view.file?.path;
 		if (!areaPath) return;
 
-		const result = await importImageFiles(
-			this.plugin.app,
-			this.plugin.settings.attachmentsDir,
-			files,
-			this.view.getItems(),
-		);
-		showImportImageResultNotice(
-			await commitImportedItems(this.plugin.app, areaPath, result),
-		);
+		const progress = createImportProgress(files.length);
+		try {
+			const result = await importImageFiles(
+				this.plugin.app,
+				this.plugin.settings.attachmentsDir,
+				files,
+				this.view.getItems(),
+				{ onProgress: progress.onProgress },
+			);
+			showImportImageResultNotice(
+				await commitImportedItems(this.plugin.app, areaPath, result),
+			);
+		} finally {
+			progress.dispose();
+		}
 	}
 
 	async importVaultFiles(files: TFile[]): Promise<void> {
@@ -88,15 +95,21 @@ export class AreaImportController {
 		const areaPath = this.view.file?.path;
 		if (!areaPath) return;
 
-		const result = await importVaultImageFiles(
-			this.plugin.app,
-			this.plugin.settings.attachmentsDir,
-			files,
-			this.view.getItems(),
-		);
-		showImportImageResultNotice(
-			await commitImportedItems(this.plugin.app, areaPath, result),
-		);
+		const progress = createImportProgress(files.length);
+		try {
+			const result = await importVaultImageFiles(
+				this.plugin.app,
+				this.plugin.settings.attachmentsDir,
+				files,
+				this.view.getItems(),
+				{ onProgress: progress.onProgress },
+			);
+			showImportImageResultNotice(
+				await commitImportedItems(this.plugin.app, areaPath, result),
+			);
+		} finally {
+			progress.dispose();
+		}
 	}
 
 	// Refuse imports into a file the view couldn't parse — otherwise the image
