@@ -96,12 +96,25 @@ sort silently falls back. Items with no value sort last in **both** directions,
 matching how a missing title already behaves.
 
 **Saved views are the only toolbar state that reaches disk.** `savedViews.ts` is
-pure — capture / apply / normalize / upsert / remove — and
-`savedViewsController.ts` owns the selection plus every write to
-`areaData.views`. All writes funnel through its private `commit()`: it re-reads
-`getAreaData()` (the in-memory `AreaFile`, not disk), refuses when `canModify()`
-is false, and **deletes the `views` key when the last view goes**, so an area that never had saved views stays
-byte-identical. Never write `areaData.views` from anywhere else.
+pure and holds every decision: capture / apply / normalize / upsert / remove,
+`resolveManagedView` vs `resolveSelectedViewId`, and `planSavedViewsWrite`.
+`savedViewsController.ts` keeps the Obsidian surface — the modals, the `Notice`,
+`crypto.randomUUID()`, the `canModify()` gate — plus the `activeViewId` itself,
+which is mutable session state rather than a decision. All writes funnel
+through its private `commit()`: it re-reads `getAreaData()` (the in-memory
+`AreaFile`, not disk), refuses when `canModify()` is false, then applies what
+`planSavedViewsWrite` returned. Never write `areaData.views` from anywhere else.
+
+**Reads normalize, writes do not.** `getViews()` returns
+`normalizeSavedViews(areaData.views)`, but `upsertSavedView` / `removeSavedView`
+take the stored array raw and hand back every entry they did not act on as the
+same object. Normalizing on the way in and writing the result back would make
+renaming view A silently rewrite view B — stripping keys this plugin does not
+know, repairing its sort, dropping it outright. Preserving unknown data outranks
+tidiness, which narrows one guarantee: `planSavedViewsWrite` drops the `views`
+key only when the array comes back **empty**, so deleting the last valid view
+from a file whose key also carries junk entries leaves the key in place with the
+junk intact. What stays byte-identical is an area that never had a `views` key.
 
 `normalizeSavedViews` treats the key as untrusted JSON, because it is: entries
 without an id or a label are dropped, a duplicate id keeps the first, and a

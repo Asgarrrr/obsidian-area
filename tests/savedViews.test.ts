@@ -6,7 +6,11 @@ import {
 	isSavedViewDirty,
 	unrepresentableFilters,
 	normalizeSavedViews,
+	planSavedViewsWrite,
 	removeSavedView,
+	resolveManagedView,
+	resolveSelectedViewId,
+	unfilteredToolbarState,
 	upsertSavedView,
 } from "../src/views/area-gallery/savedViews";
 
@@ -184,6 +188,63 @@ describe("upsertSavedView / removeSavedView", () => {
 	});
 });
 
+// Writes run on the stored array as it came off disk, never on the normalized
+// read of it. Normalizing on the way in would make renaming one view rewrite
+// every other one — stripping keys this plugin doesn't know and dropping
+// entries a hand-edit left malformed.
+describe("upsertSavedView / removeSavedView — raw entries", () => {
+	const a: AreaSavedView = { id: "a", label: "A", filters: {} };
+	const foreign = {
+		id: "keep",
+		label: "Keep",
+		filters: {},
+		pinnedBy: "another-plugin",
+	};
+	// normalizeSavedViews drops this one: no label. It still belongs to the user.
+	const malformed = { id: "broken", filters: { tags: ["x"] } };
+
+	test("an upsert leaves the entries it did not touch byte-identical", () => {
+		const [kept] = upsertSavedView([foreign], a) as [typeof foreign];
+		// Identity, not equality: a deep clone would satisfy toEqual while
+		// silently rewriting the bytes this contract exists to protect.
+		expect(kept).toBe(foreign);
+	});
+
+	test("an upsert keeps an entry normalizeSavedViews would drop", () => {
+		expect(upsertSavedView([malformed], a)).toEqual([malformed, a]);
+	});
+
+	test("an upsert replaces the raw entry holding that id, in place", () => {
+		const stale = { id: "a", label: "Stale", filters: {}, pinnedBy: "x" };
+		expect(upsertSavedView([stale, foreign], a)).toEqual([a, foreign]);
+	});
+
+	test("a removal takes out every raw entry carrying that id", () => {
+		const twin = { id: "a", label: "Twin", filters: {} };
+		expect(removeSavedView([a, twin, foreign], "a")).toEqual([foreign]);
+	});
+
+	test("a removal leaves the neighbours byte-identical", () => {
+		const [kept] = removeSavedView([a, foreign], "a") as [typeof foreign];
+		expect(kept).toBe(foreign);
+	});
+
+	// A `views` key holding anything but an array is not a list to edit — the
+	// write starts from nothing rather than throwing on the user's malformed file.
+	test("a non-array views key counts as no views at all", () => {
+		expect(upsertSavedView("nope", a)).toEqual([a]);
+		expect(upsertSavedView(undefined, a)).toEqual([a]);
+		expect(removeSavedView({ id: "a" }, "a")).toEqual([]);
+	});
+
+	// Raw entries can be anything JSON.parse produced; a null must not be read
+	// for an id.
+	test("skips raw entries that are not objects", () => {
+		expect(upsertSavedView([null, 7], a)).toEqual([null, 7, a]);
+		expect(removeSavedView([null, a], "a")).toEqual([null]);
+	});
+});
+
 describe("isSavedViewDirty", () => {
 	const base = state({
 		searchQuery: "coat",
@@ -197,9 +258,9 @@ describe("isSavedViewDirty", () => {
 	});
 
 	test("a changed search, tag or sort is dirty", () => {
-		expect(
-			isSavedViewDirty(view, { ...base, searchQuery: "shirt" }),
-		).toBe(true);
+		expect(isSavedViewDirty(view, { ...base, searchQuery: "shirt" })).toBe(
+			true,
+		);
 		expect(
 			isSavedViewDirty(view, { ...base, activeTagFilters: new Set(["b"]) }),
 		).toBe(true);
@@ -209,7 +270,7 @@ describe("isSavedViewDirty", () => {
 	});
 
 	// The label is metadata, not filter state — renaming is its own action.
-	test("a different label is not dirt", () => {
+	test("a different label is not dirty", () => {
 		expect(isSavedViewDirty({ ...view, label: "Renamed" }, base)).toBe(false);
 	});
 
@@ -229,7 +290,10 @@ describe("isSavedViewDirty", () => {
 	test("a stored view with reordered keys is not dirt", () => {
 		const reordered = {
 			sort: view.sort,
-			filters: { tags: view.filters.tags, searchQuery: view.filters.searchQuery },
+			filters: {
+				tags: view.filters.tags,
+				searchQuery: view.filters.searchQuery,
+			},
 			label: view.label,
 			id: view.id,
 		} as typeof view;
@@ -251,7 +315,9 @@ describe("round trip: apply then capture reproduces the view", () => {
 		{
 			id: "f",
 			label: "Fields",
-			filters: { fields: [{ fieldId: "s", operator: "is", values: ["draft"] }] },
+			filters: {
+				fields: [{ fieldId: "s", operator: "is", values: ["draft"] }],
+			},
 			sort: { type: "field", fieldId: "r", direction: "desc" },
 		},
 		{
@@ -325,5 +391,99 @@ describe("captureSavedView — preserving what the UI cannot express", () => {
 			{ fieldId: "s", operator: "is", values: ["draft"] },
 			{ fieldId: "n", operator: "not-empty" },
 		]);
+	});
+});
+
+// Two questions the picker asks about the same id, on purpose. "What does
+// Update / Rename / Delete act on" and "what should the select show" answer
+// differently the moment the live filters drift from the stored ones.
+describe("resolveManagedView / resolveSelectedViewId", () => {
+	const base = state({ activeTagFilters: new Set(["a"]) });
+	const view = captureSavedView("v1", "V", base);
+	const other: AreaSavedView = { id: "v2", label: "Other", filters: {} };
+	const views = [view, other];
+
+	test("resolves the view the id names", () => {
+		expect(resolveManagedView(views, "v1")).toBe(view);
+		expect(resolveSelectedViewId(views, "v1", base)).toBe("v1");
+	});
+
+	test("nothing is selected, so nothing is managed or displayed", () => {
+		expect(resolveManagedView(views, null)).toBeUndefined();
+		expect(resolveSelectedViewId(views, null, base)).toBeNull();
+	});
+
+	// The view can vanish under the selection — another window deleting it, or a
+	// hand-edit of the file.
+	test("an id no longer in the list resolves to nothing on both", () => {
+		expect(resolveManagedView(views, "gone")).toBeUndefined();
+		expect(resolveSelectedViewId(views, "gone", base)).toBeNull();
+	});
+
+	// The whole reason the two are separate: the picker must stop presenting a
+	// modified board as the saved one, while "Update this view" still has its
+	// target — updating a drifted view is exactly the point.
+	test("drift clears the displayed id but keeps the managed target", () => {
+		const drifted = { ...base, searchQuery: "coat" };
+		expect(resolveSelectedViewId(views, "v1", drifted)).toBeNull();
+		expect(resolveManagedView(views, "v1")).toBe(view);
+	});
+});
+
+describe("unfilteredToolbarState", () => {
+	// What selecting the "no view" entry restores: the board as it opens.
+	test("is an empty search, no tags, no field values and the default sort", () => {
+		const restored = unfilteredToolbarState();
+		expect(restored.searchQuery).toBe("");
+		expect(restored.activeTagFilters.size).toBe(0);
+		expect(restored.activeFieldValues.size).toBe(0);
+		expect(restored.sort).toEqual({ type: "newest" });
+	});
+
+	// The toolbar mutates what it is handed as the user clicks. A shared
+	// instance would carry one board's selection into the next reset.
+	test("hands back fresh collections each call, sort included", () => {
+		unfilteredToolbarState().activeTagFilters.add("a");
+		expect(unfilteredToolbarState().activeTagFilters.size).toBe(0);
+
+		unfilteredToolbarState().activeFieldValues.set("s", new Set(["x"]));
+		expect(unfilteredToolbarState().activeFieldValues.size).toBe(0);
+
+		// The sort too: a shared default is the one member a future in-place
+		// sort control could corrupt for every board at once.
+		expect(unfilteredToolbarState().sort).not.toBe(
+			unfilteredToolbarState().sort,
+		);
+	});
+});
+
+// What `commit()` decides once `canModify()` has let it through: the next value
+// of the `views` key, or undefined to drop the key.
+describe("planSavedViewsWrite", () => {
+	const view: AreaSavedView = { id: "v", label: "V", filters: {} };
+	// normalizeSavedViews drops this one: no label. It is still the user's data.
+	const junk = { id: "broken", filters: { tags: ["x"] } };
+
+	test("hands back the mutated list as the key's next value", () => {
+		expect(
+			planSavedViewsWrite(undefined, (raw) => upsertSavedView(raw, view)),
+		).toEqual([view]);
+	});
+
+	// An area that never had saved views must stay byte-identical, so the last
+	// removal takes the key with it rather than leaving `"views": []`.
+	test("an emptied list asks for the key to be dropped", () => {
+		expect(
+			planSavedViewsWrite([view], (raw) => removeSavedView(raw, view.id)),
+		).toBeUndefined();
+	});
+
+	// Preserving unknown data outranks tidiness. Entries normalizeSavedViews
+	// would drop are promised to survive a neighbouring write; deleting the key
+	// here would break that promise on the one write that empties the list.
+	test("the key stays when the last valid view goes but junk remains", () => {
+		expect(
+			planSavedViewsWrite([junk, view], (raw) => removeSavedView(raw, view.id)),
+		).toEqual([junk] as unknown as AreaSavedView[]);
 	});
 });

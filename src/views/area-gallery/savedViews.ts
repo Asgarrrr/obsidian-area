@@ -122,6 +122,43 @@ export function isSavedViewDirty(
 	);
 }
 
+// The view an action like "Update this view" acts on. Deliberately blind to the
+// live filters: drift must not take the target away, since updating a drifted
+// view is the whole point of the action.
+export function resolveManagedView(
+	views: AreaSavedView[],
+	activeViewId: string | null,
+): AreaSavedView | undefined {
+	if (activeViewId === null) return undefined;
+	return views.find((view) => view.id === activeViewId);
+}
+
+// What the picker should *display* as selected. Null once the view is gone or
+// the filters have drifted, so a modified board stops reading as the saved one.
+export function resolveSelectedViewId(
+	views: AreaSavedView[],
+	activeViewId: string | null,
+	state: ToolbarFilterState,
+): string | null {
+	const view = resolveManagedView(views, activeViewId);
+	if (!view) return null;
+	return isSavedViewDirty(view, state) ? null : view.id;
+}
+
+// The board as it opens, restored when the picker falls back to "no view".
+// Fresh collections every call: the toolbar mutates them as the user clicks.
+export function unfilteredToolbarState(): ToolbarFilterState {
+	return {
+		searchQuery: "",
+		activeTagFilters: new Set(),
+		activeFieldValues: new Map(),
+		// A fresh literal, not the shared DEFAULT_SORT: everything else here is
+		// handed to the toolbar to mutate, and one member that isn't would be a
+		// trap the day a sort control edits in place.
+		sort: { type: "newest" },
+	};
+}
+
 // A positional tuple rather than the object itself: key order in a stored view
 // is whatever JSON.parse handed back, and tag selection is a set, so its order
 // carries no meaning either.
@@ -141,22 +178,56 @@ function canonicalFilters(view: AreaSavedView): string {
 	]);
 }
 
-export function upsertSavedView(
-	views: AreaSavedView[],
-	view: AreaSavedView,
-): AreaSavedView[] {
-	const index = views.findIndex((candidate) => candidate.id === view.id);
-	if (index === -1) return [...views, view];
-	const next = [...views];
+// Both writers take the `views` key exactly as it came off disk, never the
+// normalized read of it. Normalization is a read concern: writing it back would
+// make editing one view rewrite every other one, stripping keys this plugin
+// does not know and dropping entries a hand-edit left malformed.
+
+// Replaces the first entry carrying the id, which is the one normalizeSavedViews
+// surfaces. A hand-edited duplicate behind it survives untouched — preserving it
+// is the point — so deleting the first entry later brings the stale one back.
+export function upsertSavedView(raw: unknown, view: AreaSavedView): unknown[] {
+	const entries = rawEntries(raw);
+	const index = entries.findIndex((entry) => rawId(entry) === view.id);
+	if (index === -1) return [...entries, view];
+	const next = [...entries];
 	next[index] = view;
 	return next;
 }
 
-export function removeSavedView(
-	views: AreaSavedView[],
-	id: string,
-): AreaSavedView[] {
-	return views.filter((view) => view.id !== id);
+// Every match, not just the first: normalizeSavedViews hides a duplicate id, so
+// leaving one behind would resurrect the view the user just deleted.
+export function removeSavedView(raw: unknown, id: string): unknown[] {
+	return rawEntries(raw).filter((entry) => rawId(entry) !== id);
+}
+
+// What the `views` key should become after a write: the mutated array, or
+// undefined to drop the key. An area that never had saved views must stay
+// byte-identical, so an emptied list leaves no `"views": []` behind.
+//
+// Only an *empty* array drops the key. Entries normalizeSavedViews would drop
+// are promised to survive a neighbouring write, and that promise has to hold on
+// the write that removes the last valid view too — so a file whose key also
+// carries junk keeps the key, with the junk intact.
+export function planSavedViewsWrite(
+	raw: unknown,
+	mutate: (raw: unknown) => unknown[],
+): AreaSavedView[] | undefined {
+	const next = mutate(raw);
+	if (next.length === 0) return undefined;
+	// Entries this plugin cannot parse ride along untouched, hence the cast.
+	return next as AreaSavedView[];
+}
+
+// A `views` key holding anything but an array is not a list to edit.
+function rawEntries(raw: unknown): unknown[] {
+	return Array.isArray(raw) ? raw : [];
+}
+
+function rawId(entry: unknown): string | undefined {
+	if (typeof entry !== "object" || entry === null) return undefined;
+	const { id } = entry as Record<string, unknown>;
+	return typeof id === "string" ? id : undefined;
 }
 
 function normalizeFilterState(raw: unknown): AreaFilterState {
