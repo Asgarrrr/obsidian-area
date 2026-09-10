@@ -6,6 +6,7 @@ import { buildFacets } from "./facets";
 import {
 	buildFieldFacets,
 	getFieldFacetSignature,
+	hasFieldValue,
 	pruneActiveFieldValues,
 } from "./fieldFacets";
 import { getAllTags, getTagSignature, pruneActiveTagFilters } from "./filtering";
@@ -28,6 +29,7 @@ interface RenderAreaToolbarOptions {
 	canModify: boolean;
 	savedViewActions: Pick<
 		SavedViewsBarOptions,
+		| "hasManagedView"
 		| "onSelect"
 		| "onSaveAsNew"
 		| "onUpdateActive"
@@ -103,8 +105,10 @@ export function renderAreaToolbar({
 		...fieldFacets.map((facet) => ({
 			facet,
 			kind: "field" as const,
-			isActive: (value: string) =>
-				activeFieldValues.get(facet.key)?.has(value) ?? false,
+			isActive: (value: string) => {
+				const values = activeFieldValues.get(facet.key);
+				return values ? hasFieldValue(values, value) : false;
+			},
 			onToggle: (value: string) => onFieldValueToggle(facet.key, value),
 		})),
 	];

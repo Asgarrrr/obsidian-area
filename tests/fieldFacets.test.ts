@@ -3,8 +3,10 @@ import type { AreaFieldDef, AreaItem, FieldValue } from "../src/types";
 import {
 	buildFieldFacets,
 	getFieldFacetSignature,
+	hasFieldValue,
 	pruneActiveFieldValues,
 	toFieldFilters,
+	toggleFieldValue,
 } from "../src/views/area-gallery/fieldFacets";
 
 function item(id: string, fields?: Record<string, FieldValue>): AreaItem {
@@ -225,5 +227,48 @@ describe("toFieldFilters", () => {
 
 	test("no selection yields no filters", () => {
 		expect(toFieldFilters(new Map())).toEqual([]);
+	});
+});
+
+// The matcher and the pruner both compare case-insensitively. Selection
+// membership has to agree, or a filter can be active while its row reads
+// unchecked — and clicking that row adds a second spelling instead of clearing.
+describe("hasFieldValue / toggleFieldValue", () => {
+	test("membership ignores case and padding", () => {
+		const values = new Set(["Draft"]);
+		expect(hasFieldValue(values, "Draft")).toBe(true);
+		expect(hasFieldValue(values, "draft")).toBe(true);
+		expect(hasFieldValue(values, " DRAFT ")).toBe(true);
+		expect(hasFieldValue(values, "final")).toBe(false);
+	});
+
+	test("toggling off removes the stored spelling, whatever case is clicked", () => {
+		const values = new Set(["Draft"]);
+		toggleFieldValue(values, "draft");
+		expect([...values]).toEqual([]);
+	});
+
+	test("toggling on adds the clicked spelling", () => {
+		const values = new Set<string>();
+		toggleFieldValue(values, "Draft");
+		expect([...values]).toEqual(["Draft"]);
+	});
+
+	test("toggling never leaves two spellings of one value", () => {
+		const values = new Set(["Draft"]);
+		toggleFieldValue(values, "draft");
+		toggleFieldValue(values, "DRAFT");
+		expect(values.size).toBe(1);
+	});
+
+	// The exact state the pruner can leave behind: it keeps a selection whose
+	// case no longer matches the value the facet displays.
+	test("a pruned-but-recased selection still reads as active", () => {
+		const facets = buildFieldFacets([item("a", { status: "draft" })], [
+			statusField,
+		]);
+		const active = new Map([["status", new Set(["Draft"])]]);
+		expect(pruneActiveFieldValues(active, facets)).toBe(false);
+		expect(hasFieldValue(active.get("status") ?? new Set(), "draft")).toBe(true);
 	});
 });

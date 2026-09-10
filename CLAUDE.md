@@ -99,8 +99,8 @@ matching how a missing title already behaves.
 pure — capture / apply / normalize / upsert / remove — and
 `savedViewsController.ts` owns the selection plus every write to
 `areaData.views`. All writes funnel through its private `commit()`: it re-reads
-the file, refuses when `canModify()` is false, and **deletes the `views` key
-when the last view goes**, so an area that never had saved views stays
+`getAreaData()` (the in-memory `AreaFile`, not disk), refuses when `canModify()`
+is false, and **deletes the `views` key when the last view goes**, so an area that never had saved views stays
 byte-identical. Never write `areaData.views` from anywhere else.
 
 `normalizeSavedViews` treats the key as untrusted JSON, because it is: entries
@@ -110,7 +110,22 @@ returns fresh `Set`/`Map` instances — handing back the stored arrays would let
 later facet click rewrite the file through the live state.
 
 Only `is` filters have a facet control, so `applySavedView` skips the other
-operators. They survive on disk untouched; they simply have nothing to light up.
+operators — they have nothing to light up in the bar. Keeping them requires
+feeding them back through `captureSavedView`'s `preserve` argument, which
+`updateActive` does via `unrepresentableFilters`; without it, updating a
+hand-written view would silently delete its operators from disk.
+
+**Selection membership compares like the matcher does.** `hasFieldValue` /
+`toggleFieldValue` in `fieldFacets.ts` are case- and padding-insensitive,
+because `matchesFieldFilters` and `pruneActiveFieldValues` are. Exact `Set.has`
+let a filter stay active while its row read unchecked — the pruner keeps
+`"Draft"` after the facet re-cases to `"draft"` — and the clearing click added a
+second spelling instead. Never reach into an `activeFieldValues` set directly.
+
+**The saved-views menu reads its state at click time.** `hasManagedView()` is a
+callback, not a captured boolean, and it is deliberately *not* `getActiveId()`:
+that one goes null on drift so the picker stops lying, while updating a drifted
+view is the whole point of the action.
 
 **The saved-view select is repainted through the handle, not a re-render.**
 A facet click deliberately does not rebuild the toolbar (it would destroy the

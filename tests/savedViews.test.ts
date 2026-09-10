@@ -4,6 +4,7 @@ import {
 	applySavedView,
 	captureSavedView,
 	isSavedViewDirty,
+	unrepresentableFilters,
 	normalizeSavedViews,
 	removeSavedView,
 	upsertSavedView,
@@ -233,5 +234,96 @@ describe("isSavedViewDirty", () => {
 			id: view.id,
 		} as typeof view;
 		expect(isSavedViewDirty(reordered, base)).toBe(false);
+	});
+});
+
+// The invariant the whole picker rests on: restoring a view then re-capturing
+// it must reproduce it. Anything that breaks this shows the view as modified
+// the instant it is selected, and the obvious next click — "Update this view" —
+// writes the difference to disk.
+describe("round trip: apply then capture reproduces the view", () => {
+	const views = normalizeSavedViews([
+		{ id: "a", label: "Plain", filters: {} },
+		{ id: "b", label: "Search", filters: { searchQuery: "wool" } },
+		{ id: "c", label: "Tags", filters: { tags: ["x/y", "a/b"] } },
+		{ id: "d", label: "Dup tags", filters: { tags: ["a", "a"] } },
+		{ id: "e", label: "Upper search", filters: { searchQuery: " Wool " } },
+		{
+			id: "f",
+			label: "Fields",
+			filters: { fields: [{ fieldId: "s", operator: "is", values: ["draft"] }] },
+			sort: { type: "field", fieldId: "r", direction: "desc" },
+		},
+		{
+			id: "g",
+			label: "Unrepresentable",
+			filters: { fields: [{ fieldId: "n", operator: "not-empty" }] },
+		},
+	]);
+
+	for (const view of views) {
+		test(`"${view.label}" is not dirty right after being applied`, () => {
+			expect(isSavedViewDirty(view, applySavedView(view))).toBe(false);
+		});
+	}
+});
+
+describe("applySavedView — search normalization", () => {
+	// matchesSearch compares against a pre-lowercased, trimmed query; the live
+	// toolbar guarantees that, a hand-edited file does not.
+	test("lowercases and trims a hand-written query", () => {
+		const restored = applySavedView({
+			id: "v",
+			label: "V",
+			filters: { searchQuery: "  Wool  " },
+		});
+		expect(restored.searchQuery).toBe("wool");
+	});
+});
+
+describe("normalizeSavedViews — duplicate tags", () => {
+	test("collapses a tag repeated in the stored list", () => {
+		const [view] = normalizeSavedViews([
+			{ id: "v", label: "V", filters: { tags: ["a", "a", "b"] } },
+		]);
+		expect(view?.filters.tags).toEqual(["a", "b"]);
+	});
+});
+
+describe("captureSavedView — preserving what the UI cannot express", () => {
+	const stored: AreaSavedView = {
+		id: "v",
+		label: "V",
+		filters: { fields: [{ fieldId: "n", operator: "not-empty" }] },
+	};
+
+	// The facet bar can only produce `is` filters. Re-capturing without the
+	// others would delete them from disk on the next "Update this view".
+	test("an update keeps the operators the facet bar cannot produce", () => {
+		const captured = captureSavedView(
+			"v",
+			"V",
+			applySavedView(stored),
+			unrepresentableFilters(stored),
+		);
+		expect(captured.filters.fields).toEqual([
+			{ fieldId: "n", operator: "not-empty" },
+		]);
+	});
+
+	test("preserved filters sit alongside the ones the bar did produce", () => {
+		const captured = captureSavedView(
+			"v",
+			"V",
+			{
+				...applySavedView(stored),
+				activeFieldValues: new Map([["s", new Set(["draft"])]]),
+			},
+			unrepresentableFilters(stored),
+		);
+		expect(captured.filters.fields).toEqual([
+			{ fieldId: "s", operator: "is", values: ["draft"] },
+			{ fieldId: "n", operator: "not-empty" },
+		]);
 	});
 });

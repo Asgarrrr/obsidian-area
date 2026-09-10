@@ -204,22 +204,9 @@ describe("matchesFieldFilters — combining filters", () => {
 		).toBe(false);
 	});
 
-	// A saved view can outlive the schema field it filters on. Dropping the
-	// stale filter keeps the rest of the view working (spec 03, edge cases).
-	test("a filter on a field the schema no longer defines is ignored", () => {
-		expect(
-			matchesFieldFilters(
-				coat,
-				[
-					{ fieldId: "status", operator: "is", values: ["final"] },
-					{ fieldId: "gone", operator: "is", values: ["x"] },
-				],
-				new Set(["status", "note", "rating"]),
-			),
-		).toBe(true);
-	});
-
-	test("without a known-field set every filter applies", () => {
+	// Stale filters are pruned upstream by pruneActiveFieldValues; anything that
+	// reaches the matcher naming an absent field simply matches nothing.
+	test("a filter on a field the item has no value for rejects it", () => {
 		expect(
 			matchesFieldFilters(coat, [
 				{ fieldId: "gone", operator: "is", values: ["x"] },

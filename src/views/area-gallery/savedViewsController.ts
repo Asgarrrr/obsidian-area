@@ -10,6 +10,7 @@ import {
 	normalizeSavedViews,
 	removeSavedView,
 	type ToolbarFilterState,
+	unrepresentableFilters,
 	upsertSavedView,
 } from "./savedViews";
 
@@ -42,6 +43,13 @@ export class SavedViewsController {
 
 	getViews(): AreaSavedView[] {
 		return normalizeSavedViews(this.host.getAreaData().views);
+	}
+
+	// Whether an action like "Update this view" has a target. Distinct from
+	// getActiveId(), which reports what the picker should *display* and goes
+	// null on drift — updating a drifted view is exactly the point.
+	hasManagedView(): boolean {
+		return this.findActive() !== undefined;
 	}
 
 	// Null once the filters drift, so the picker stops presenting a modified
@@ -93,6 +101,7 @@ export class SavedViewsController {
 			active.id,
 			active.label,
 			this.bridge.capture(),
+			unrepresentableFilters(active),
 		);
 		if (!this.commit((views) => upsertSavedView(views, updated))) return;
 		this.bridge.refresh();

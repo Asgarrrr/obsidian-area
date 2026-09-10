@@ -7,6 +7,7 @@ import {
 	buildFieldFacets,
 	getFieldFacetSignature,
 	toFieldFilters,
+	toggleFieldValue,
 } from "./fieldFacets";
 import {
 	getAllTags,
@@ -150,6 +151,7 @@ export class GalleryToolbarController {
 			activeViewId: this.savedViews.getActiveId(),
 			canModify: this.view.canModify(),
 			savedViewActions: {
+				hasManagedView: () => this.savedViews.hasManagedView(),
 				onSelect: (id) => this.savedViews.select(id),
 				onSaveAsNew: () => this.savedViews.saveAsNew(),
 				onUpdateActive: () => this.savedViews.updateActive(),
@@ -184,17 +186,12 @@ export class GalleryToolbarController {
 				this.view.rerenderGrid();
 			},
 			onFieldValueToggle: (fieldId, value) => {
-				const values = this.activeFieldValues.get(fieldId);
-				if (!values) {
-					this.activeFieldValues.set(fieldId, new Set([value]));
-				} else if (values.has(value)) {
-					values.delete(value);
-					// An empty set would keep the field in the map and read as an
-					// active filter matching nothing.
-					if (values.size === 0) this.activeFieldValues.delete(fieldId);
-				} else {
-					values.add(value);
-				}
+				const values = this.activeFieldValues.get(fieldId) ?? new Set<string>();
+				toggleFieldValue(values, value);
+				// An empty set would keep the field in the map and read as an active
+				// filter matching nothing.
+				if (values.size === 0) this.activeFieldValues.delete(fieldId);
+				else this.activeFieldValues.set(fieldId, values);
 				this.view.rerenderGrid();
 			},
 			// Distinct from clearFilters(): the facet bar clears its own buttons in

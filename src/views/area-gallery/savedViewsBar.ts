@@ -16,6 +16,10 @@ export interface SavedViewsBarOptions {
 	// False while the file couldn't be parsed — every write is refused, so the
 	// actions that persist must not be offered.
 	canModify: boolean;
+	// Whether the controller still holds a view to act on. Read at click time,
+	// not at render: the displayed selection drops to "All items" as soon as the
+	// filters drift, but the view is still there to update, rename or delete.
+	hasManagedView: () => boolean;
 	onSelect: (id: string | null) => void;
 	onSaveAsNew: () => void;
 	onUpdateActive: () => void;
@@ -34,6 +38,7 @@ export function renderSavedViewsBar({
 	views,
 	activeViewId,
 	canModify,
+	hasManagedView,
 	onSelect,
 	onSaveAsNew,
 	onUpdateActive,
@@ -58,11 +63,11 @@ export function renderSavedViewsBar({
 		.setValue(active)
 		.onChange((value) => onSelect(value === UNSAVED_VALUE ? null : value));
 
-	const hasActive = active !== UNSAVED_VALUE;
 	const actions = new ButtonComponent(bar)
 		.setIcon("bookmark")
 		.setTooltip("Saved views")
 		.onClick((evt) => {
+			const hasActive = hasManagedView();
 			const menu = new Menu();
 			menu.addItem((entry) =>
 				entry

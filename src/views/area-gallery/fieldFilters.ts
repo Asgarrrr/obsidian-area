@@ -8,17 +8,12 @@ import type { AreaFieldFilter, AreaItem, FieldValue } from "../../types";
 export function matchesFieldFilters(
 	item: AreaItem,
 	filters: AreaFieldFilter[],
-	// When given, filters naming a field outside the set are skipped. A saved
-	// view can outlive the schema field it references; dropping the stale
-	// filter keeps the rest of the view working instead of emptying the grid.
-	knownFieldIds?: ReadonlySet<string>,
 ): boolean {
 	if (filters.length === 0) return true;
 
-	return filters.every((filter) => {
-		if (knownFieldIds && !knownFieldIds.has(filter.fieldId)) return true;
-		return matchesFieldFilter(item.fields?.[filter.fieldId], filter);
-	});
+	return filters.every((filter) =>
+		matchesFieldFilter(item.fields?.[filter.fieldId], filter),
+	);
 }
 
 function matchesFieldFilter(

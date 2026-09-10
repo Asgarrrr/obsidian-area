@@ -21,17 +21,27 @@ export interface ToolbarFilterState {
 
 const DEFAULT_SORT: AreaSortState = { type: "newest" };
 
+// The facet bar can only express `is`. Anything else a stored view holds is
+// passed back in through `preserve`, or updating that view would silently
+// delete operators the UI simply has no control for.
+export function unrepresentableFilters(view: AreaSavedView): AreaFieldFilter[] {
+	return (view.filters.fields ?? []).filter(
+		(filter) => filter.operator !== "is",
+	);
+}
+
 export function captureSavedView(
 	id: string,
 	label: string,
 	state: ToolbarFilterState,
+	preserve: AreaFieldFilter[] = [],
 ): AreaSavedView {
 	const filters: AreaFilterState = {};
 	if (state.searchQuery !== "") filters.searchQuery = state.searchQuery;
 	if (state.activeTagFilters.size > 0) {
 		filters.tags = [...state.activeTagFilters];
 	}
-	const fields = toFieldFilters(state.activeFieldValues);
+	const fields = [...toFieldFilters(state.activeFieldValues), ...preserve];
 	if (fields.length > 0) filters.fields = fields;
 
 	const view: AreaSavedView = { id, label: label.trim(), filters };
@@ -52,7 +62,9 @@ export function applySavedView(view: AreaSavedView): ToolbarFilterState {
 	}
 
 	return {
-		searchQuery: view.filters.searchQuery ?? "",
+		// matchesSearch compares against a lowercased, trimmed query — the live
+		// toolbar guarantees that, a hand-edited file does not.
+		searchQuery: (view.filters.searchQuery ?? "").trim().toLowerCase(),
 		// Fresh collections: the caller mutates these as the user clicks, and
 		// they must not write through to the stored view.
 		activeTagFilters: new Set(view.filters.tags ?? []),
@@ -99,8 +111,14 @@ export function isSavedViewDirty(
 	state: ToolbarFilterState,
 ): boolean {
 	return (
-		canonicalFilters(captureSavedView(view.id, view.label, state)) !==
-		canonicalFilters(view)
+		canonicalFilters(
+			captureSavedView(
+				view.id,
+				view.label,
+				state,
+				unrepresentableFilters(view),
+			),
+		) !== canonicalFilters(view)
 	);
 }
 
@@ -146,12 +164,14 @@ function normalizeFilterState(raw: unknown): AreaFilterState {
 	const { searchQuery, tags, fields } = raw as Record<string, unknown>;
 
 	const filters: AreaFilterState = {};
-	if (typeof searchQuery === "string" && searchQuery !== "") {
-		filters.searchQuery = searchQuery;
+	if (typeof searchQuery === "string" && searchQuery.trim() !== "") {
+		filters.searchQuery = searchQuery.trim().toLowerCase();
 	}
 
+	// De-duplicated: tag selection is a set, and a repeat would make the view
+	// read as modified the instant it is applied.
 	const cleanTags = Array.isArray(tags)
-		? tags.filter((tag): tag is string => typeof tag === "string")
+		? [...new Set(tags.filter((tag): tag is string => typeof tag === "string"))]
 		: [];
 	if (cleanTags.length > 0) filters.tags = cleanTags;
 

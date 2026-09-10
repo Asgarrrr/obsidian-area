@@ -33,6 +33,34 @@ export function toFieldFilters(
 	return filters;
 }
 
+// Selection membership has to compare the way the matcher and the pruner do.
+// Exact membership let a filter stay active while its facet row read unchecked
+// — the pruner keeps "Draft" when the facet has re-cased to "draft" — and the
+// click that should have cleared it added a second spelling instead.
+export function hasFieldValue(
+	values: ReadonlySet<string>,
+	value: string,
+): boolean {
+	return findStoredValue(values, value) !== undefined;
+}
+
+export function toggleFieldValue(values: Set<string>, value: string): void {
+	const stored = findStoredValue(values, value);
+	if (stored === undefined) values.add(value);
+	else values.delete(stored);
+}
+
+function findStoredValue(
+	values: ReadonlySet<string>,
+	value: string,
+): string | undefined {
+	const needle = value.trim().toLowerCase();
+	for (const stored of values) {
+		if (stored.trim().toLowerCase() === needle) return stored;
+	}
+	return undefined;
+}
+
 // Editing items can strip the last item holding a selected value, leaving a
 // highlighted button that matches nothing. Mirrors pruneActiveTagFilters.
 export function pruneActiveFieldValues(
